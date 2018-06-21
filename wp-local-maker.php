@@ -164,7 +164,7 @@ class Backup_Command extends WP_CLI_Command {
 	}
 
 	protected static function dump_structure() {
-		$command = '/usr/bin/env mysqldump --no-defaults %s';
+		$command = '/usr/bin/env mysqldump --no-defaults %s --single-transaction --quick';
 		$command_esc_args = array( DB_NAME );
 
 		$command .= ' --no-data';
@@ -181,7 +181,7 @@ class Backup_Command extends WP_CLI_Command {
 	}
 
 	protected static function dump_data_from_table($table) {
-		$command = '/usr/bin/env mysqldump --no-defaults %s';
+		$command = '/usr/bin/env mysqldump --no-defaults %s --single-transaction --quick';
 		$command_esc_args = array( DB_NAME );
 
 		$command .= ' --no-create-info';
@@ -193,6 +193,10 @@ class Backup_Command extends WP_CLI_Command {
 		$escaped_command = call_user_func_array( '\WP_CLI\Utils\esc_cmd', array_merge( array( $command ), $command_esc_args ) );
 		
 		$this_table_file = self::get_temp_filename();
+
+		global $wpdb;
+
+		WP_CLI::line( sprintf( 'Exporting %d rows from %s', $wpdb->get_var( "SELECT COUNT(*) FROM {$table}" ), $table ) );
 
 		self::run( $escaped_command, array(
 			'result-file' => $this_table_file,
