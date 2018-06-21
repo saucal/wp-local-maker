@@ -220,6 +220,7 @@ class Backup_Command extends WP_CLI_Command {
 			// Order related
 			$wpdb->prefix . 'woocommerce_order_items',
 			$wpdb->prefix . 'woocommerce_order_itemmeta',
+			$wpdb->prefix . 'woocommerce_downloadable_product_permissions',
 			// User related
 			$wpdb->users,
 			$wpdb->usermeta,
@@ -472,6 +473,11 @@ class Backup_Command extends WP_CLI_Command {
 	protected static function process_woocommerce_order_itemmeta() {
 		global $wpdb;
 		return self::dependant_table_dump_single($wpdb->prefix . 'woocommerce_order_itemmeta', $wpdb->prefix . 'woocommerce_order_items', 'order_item_id', 'order_item_id');
+	}
+
+	protected static function process_woocommerce_downloadable_product_permissions() {
+		global $wpdb;
+		return self::dependant_table_dump_single($wpdb->prefix . 'woocommerce_downloadable_product_permissions', $wpdb->posts, 'order_id', 'ID');
 	}
 
 	protected static function process_users() {
