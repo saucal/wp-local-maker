@@ -296,7 +296,7 @@ class Backup_Command extends WP_CLI_Command {
 		$wpdb->query("REPLACE INTO {$temp}
 			SELECT * FROM {$wpdb->posts} p
 			WHERE p.post_status NOT IN ('auto-draft', 'trash')
-			AND p.post_type NOT IN ( 'post', 'attachment', 'shop_order', 'shop_order_refund', 'product', 'revision' )");
+			AND p.post_type NOT IN ( 'post', 'attachment', 'shop_order', 'shop_order_refund', 'product', 'revision', 'shop_subscription' )");
 
 		// Handle posts
 		$wpdb->query("REPLACE INTO {$temp}
@@ -313,6 +313,20 @@ class Backup_Command extends WP_CLI_Command {
 			AND p.post_type IN ( 'shop_order' )
 			ORDER BY p.post_date DESC
 			LIMIT 50");
+
+        // Handle subscriptions
+        $wpdb->query("REPLACE INTO {$temp}
+            SELECT * FROM {$wpdb->posts} p
+            WHERE p.post_status NOT IN ('auto-draft', 'trash')
+            AND p.post_type IN ( 'shop_subscription' )
+            ORDER BY p.post_date DESC
+            LIMIT 50");
+
+         // Handle subscriptions related orders
+        $wpdb->query("REPLACE INTO {$temp}
+            SELECT p.* FROM {$wpdb->posts} p
+            INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id AND ( pm.meta_key = '_subscription_switch' OR pm.meta_key = '_subscription_renewal' OR pm.meta_key = 'subscription_resubscribe' )
+            WHERE pm.meta_value IN ( SELECT ID FROM {$temp} p2 WHERE p2.post_type = 'shop_subscription' )");
 
 		// Handle refunds
 		$wpdb->query("REPLACE INTO {$temp}
@@ -338,6 +352,15 @@ class Backup_Command extends WP_CLI_Command {
 			WHERE p.post_status NOT IN ('auto-draft', 'trash')
 			AND p.post_type IN ( 'attachment' ) AND p.post_parent = 0
 			LIMIT 500");
+
+        // Loop until there's no missing parents
+        do {
+            $affected = $wpdb->query("REPLACE INTO {$temp}
+                SELECT p3.* FROM {$temp} p
+                LEFT JOIN {$temp} p2 ON p2.ID = p.post_parent
+                LEFT JOIN {$wpdb->posts} p3 ON p3.ID = p.post_parent
+                WHERE p.post_parent != 0 AND p2.ID IS NULL AND p3.ID IS NOT NULL");
+        } while( $affected > 0 );
 
 		$file = self::dump_data_from_table( $temp );
 
