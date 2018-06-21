@@ -258,10 +258,31 @@ class Backup_Command extends WP_CLI_Command {
 
 		foreach($tables as $table) {
 			switch ($table) {
+				// Order Generator
 				case 'fakenames':
-				case 'wp_wc_download_log':
-				case 'wp_woocommerce_sessions':
-				case 'wp_woocommerce_log':
+
+				// WooCommerce
+				case $wpdb->prefix . 'wc_download_log':
+				case $wpdb->prefix . 'woocommerce_sessions':
+				case $wpdb->prefix . 'woocommerce_log':
+
+				// Redirection
+				case $wpdb->prefix . 'redirection_logs':
+				case $wpdb->prefix . 'redirection_404':
+
+				// Smart Transients
+				case $wpdb->prefix . 'sch_smart_transients':
+
+				// Gravity Forms
+				case $wpdb->prefix . 'gf_entry':
+				case $wpdb->prefix . 'gf_entry_meta':
+				case $wpdb->prefix . 'gf_entry_notes':
+				case $wpdb->prefix . 'gf_form_view':
+				case $wpdb->prefix . 'rg_lead':
+				case $wpdb->prefix . 'rg_lead_detail':
+				case $wpdb->prefix . 'rg_lead_detail_long':
+				case $wpdb->prefix . 'rg_lead_meta':
+				case $wpdb->prefix . 'rg_lead_notes':
 					continue 2;
 					break;
 			}
