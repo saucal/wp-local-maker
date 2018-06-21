@@ -249,7 +249,7 @@ class Backup_Command extends WP_CLI_Command {
 	protected static function dump_data() {
 		global $wpdb;
 		$files = array();
-		$tables = $wpdb->get_col('SHOW TABLES');
+		$tables = $wpdb->get_col("SHOW FULL TABLES WHERE Table_Type = 'BASE TABLE'");
 
 		$tables_info = self::get_tables_info();
 
