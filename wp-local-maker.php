@@ -296,7 +296,7 @@ class Backup_Command extends WP_CLI_Command {
 		$wpdb->query("REPLACE INTO {$temp}
 			SELECT * FROM {$wpdb->posts} p
 			WHERE p.post_status NOT IN ('auto-draft', 'trash')
-			AND p.post_type NOT IN ( 'post', 'attachment', 'shop_order', 'shop_order_refund', 'product', 'revision', 'shop_subscription' )");
+			AND p.post_type NOT IN ( 'post', 'attachment', 'shop_order', 'shop_order_refund', 'product', 'revision', 'shop_subscription', 'scheduled-action' )");
 
 		// Handle posts
 		$wpdb->query("REPLACE INTO {$temp}
@@ -322,11 +322,16 @@ class Backup_Command extends WP_CLI_Command {
             ORDER BY p.post_date DESC
             LIMIT 50");
 
-         // Handle subscriptions related orders
+        // Handle subscriptions related orders
         $wpdb->query("REPLACE INTO {$temp}
             SELECT p.* FROM {$wpdb->posts} p
             INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id AND ( pm.meta_key = '_subscription_switch' OR pm.meta_key = '_subscription_renewal' OR pm.meta_key = 'subscription_resubscribe' )
             WHERE pm.meta_value IN ( SELECT ID FROM {$temp} p2 WHERE p2.post_type = 'shop_subscription' )");
+
+        // Handle subscriptions related actions
+        $wpdb->query("REPLACE INTO {$temp}
+            SELECT * FROM {$wpdb->posts} 
+            WHERE post_type = 'scheduled-action' AND post_content IN ( SELECT CONCAT('{\"subscription_id\":', ID, '}') FROM {$temp} p2 WHERE p2.post_type = 'shop_subscription' )");
 
 		// Handle refunds
 		$wpdb->query("REPLACE INTO {$temp}
