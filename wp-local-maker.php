@@ -414,6 +414,7 @@ class Backup_Command extends WP_CLI_Command {
 			SELECT * FROM {$wpdb->posts} p
 			WHERE p.post_status NOT IN ('auto-draft', 'trash')
 			AND p.post_type IN ( 'attachment' ) AND p.post_parent = 0
+            ORDER BY p.post_date DESC
 			LIMIT 500");
 
         // Loop until there's no missing parents
