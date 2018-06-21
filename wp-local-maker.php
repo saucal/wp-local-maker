@@ -300,7 +300,7 @@ class Backup_Command extends WP_CLI_Command {
 		$wpdb->query("REPLACE INTO {$temp}
 			SELECT * FROM {$wpdb->posts} p
 			WHERE p.post_status NOT IN ('auto-draft', 'trash')
-			AND p.post_type NOT IN ( 'post', 'attachment', 'shop_order', 'shop_order_refund', 'product', 'revision', 'shop_subscription', 'scheduled-action', 'wc_user_membership' )");
+			AND p.post_type NOT IN ( 'post', 'attachment', 'shop_order', 'shop_order_refund', 'product', 'revision', 'shop_subscription', 'scheduled-action', 'wc_user_membership', 'shop_coupon' )");
 
 		// Handle posts
 		$wpdb->query("REPLACE INTO {$temp}
@@ -361,6 +361,19 @@ class Backup_Command extends WP_CLI_Command {
 			SELECT * FROM {$wpdb->posts} p
 			WHERE p.post_status NOT IN ('auto-draft', 'trash')
 			AND p.post_type IN ( 'shop_order_refund' ) AND p.post_parent IN ( SELECT ID FROM {$temp} p2 )");
+
+		// Handle coupons (only copy used)
+		$wpdb->query("CREATE TEMPORARY TABLE wp_list_temp 
+			SELECT oi.order_item_name FROM {$wpdb->prefix}woocommerce_order_items oi
+			WHERE oi.order_id IN ( SELECT ID FROM {$temp} ) AND oi.order_item_type = 'coupon'
+			GROUP BY oi.order_item_name");
+
+		$wpdb->query("REPLACE INTO {$temp}
+			SELECT * FROM {$wpdb->posts} p
+			WHERE p.post_status NOT IN ('auto-draft', 'trash')
+			AND p.post_type IN ( 'shop_coupon' ) AND post_title IN ( SELECT * FROM wp_list_temp )");
+
+		$wpdb->query("DROP TABLE wp_list_temp");
 
 		// Handle products
 		$wpdb->query("REPLACE INTO {$temp}
