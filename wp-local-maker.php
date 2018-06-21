@@ -296,7 +296,7 @@ class Backup_Command extends WP_CLI_Command {
 		$wpdb->query("REPLACE INTO {$temp}
 			SELECT * FROM {$wpdb->posts} p
 			WHERE p.post_status NOT IN ('auto-draft', 'trash')
-			AND p.post_type NOT IN ( 'post', 'attachment', 'shop_order', 'shop_order_refund', 'product', 'revision', 'shop_subscription', 'scheduled-action' )");
+			AND p.post_type NOT IN ( 'post', 'attachment', 'shop_order', 'shop_order_refund', 'product', 'revision', 'shop_subscription', 'scheduled-action', 'wc_user_membership' )");
 
 		// Handle posts
 		$wpdb->query("REPLACE INTO {$temp}
@@ -332,6 +332,25 @@ class Backup_Command extends WP_CLI_Command {
         $wpdb->query("REPLACE INTO {$temp}
             SELECT * FROM {$wpdb->posts} 
             WHERE post_type = 'scheduled-action' AND post_content IN ( SELECT CONCAT('{\"subscription_id\":', ID, '}') FROM {$temp} p2 WHERE p2.post_type = 'shop_subscription' )");
+
+        // Handle memberships
+        $wpdb->query("REPLACE INTO {$temp}
+            SELECT * FROM {$wpdb->posts} p
+            WHERE p.post_status NOT IN ('auto-draft', 'trash')
+            AND p.post_type IN ( 'wc_user_membership' )
+            ORDER BY p.post_date DESC
+            LIMIT 50");
+
+        // Handle subscriptions related memberships
+        $wpdb->query("REPLACE INTO {$temp}
+            SELECT p.* FROM {$wpdb->posts} p
+            INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id AND pm.meta_key = '_subscription_id'
+            WHERE p.post_type IN ( 'wc_user_membership' ) AND pm.meta_value IN ( SELECT ID FROM {$temp} p2 WHERE p2.post_type = 'shop_subscription' )");
+
+        // Handle memberships related actions
+        $wpdb->query("REPLACE INTO {$temp}
+            SELECT * FROM {$wpdb->posts} 
+            WHERE post_type = 'scheduled-action' AND post_content IN ( SELECT CONCAT('{\"user_membership_id\":', ID, '}') FROM {$temp} p2 WHERE p2.post_type = 'wc_user_membership' )");
 
 		// Handle refunds
 		$wpdb->query("REPLACE INTO {$temp}
