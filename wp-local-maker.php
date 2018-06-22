@@ -131,20 +131,6 @@ class Backup_Command extends WP_CLI_Command {
 		}
 		$stdout = ( '-' === $result_file );
 
-		/*$tables_to_treat_separately = array(
-			$wpdb->posts, 
-			$wpdb->postmeta, 
-			$wpdb->comments, 
-			$wpdb->commentmeta, 
-			'fakenames'
-		);
-
-		foreach ( $tables_to_treat_separately as $table ) {
-			$command .= ' --ignore-table';
-			$command .= ' %s';
-			$command_esc_args[] = trim( DB_NAME . '.' . $table );
-		}*/
-
 		$files = array();
 		$files[] = self::dump_structure();
 
