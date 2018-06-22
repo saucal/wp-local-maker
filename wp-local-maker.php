@@ -283,6 +283,15 @@ class Backup_Command extends WP_CLI_Command {
 				case $wpdb->prefix . 'rg_lead_detail_long':
 				case $wpdb->prefix . 'rg_lead_meta':
 				case $wpdb->prefix . 'rg_lead_notes':
+				case $wpdb->prefix . 'rg_form_view':
+				case $wpdb->prefix . 'rg_incomplete_submissions':
+
+				// Affiliate WP
+				case $wpdb->prefix . 'affiliate_wp_visits':
+
+				// Abandoned Cart
+				case $wpdb->prefix . 'ac_abandoned_cart_history':
+				case $wpdb->prefix . 'ac_guest_abandoned_cart_history':
 					continue 2;
 					break;
 			}
