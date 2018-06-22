@@ -149,7 +149,7 @@ class Backup_Command extends WP_CLI_Command {
 		return tempnam(sys_get_temp_dir(), 'backup_export');
 	}
 
-	protected static function dump_structure() {
+	public static function dump_structure() {
 		$command = '/usr/bin/env mysqldump --no-defaults %s --single-transaction --quick';
 		$command_esc_args = array( DB_NAME );
 
@@ -166,7 +166,7 @@ class Backup_Command extends WP_CLI_Command {
 		return $first_pass;
 	}
 
-	protected static function dump_data_from_table($table) {
+	public static function dump_data_from_table($table) {
 		$command = '/usr/bin/env mysqldump --no-defaults %s --single-transaction --quick';
 		$command_esc_args = array( DB_NAME );
 
@@ -191,224 +191,40 @@ class Backup_Command extends WP_CLI_Command {
 		return $this_table_file;
 	}
 
-	protected static function get_tables_info() {
+	public static function get_tables_info() {
 		global $wpdb;
 		if(isset(self::$tables_info)) {
 			return self::$tables_info;
 		}
 
-		$tables_to_custom_process = array(
-			// Posts related
-			$wpdb->posts,
-			$wpdb->postmeta,
-			$wpdb->comments,
-			$wpdb->commentmeta,
-			// Order related
-			$wpdb->prefix . 'woocommerce_order_items',
-			$wpdb->prefix . 'woocommerce_order_itemmeta',
-			$wpdb->prefix . 'woocommerce_downloadable_product_permissions',
-			// User related
-			$wpdb->users,
-			$wpdb->usermeta,
-			$wpdb->prefix . 'woocommerce_payment_tokens',
-			$wpdb->prefix . 'woocommerce_payment_tokenmeta',
-			// Term related
-			$wpdb->term_relationships,
-			$wpdb->term_taxonomy,
-			$wpdb->terms,
-			$wpdb->termmeta,
-			// EWWIO
-			$wpdb->prefix . 'ewwwio_images',
-			// Core related
-			$wpdb->options,
-		);
+        $tables_to_custom_process = apply_filters( 'wp_local_maker_custom_process_tables', array() );
 
-		$new = array();
-		foreach( $tables_to_custom_process as $key => $table ) {
-			$new[$table] = array(
+        $key=-1;
+        foreach( $tables_to_custom_process as $table => $cb ) {
+        	$key++;
+        	$tables_to_custom_process[$table] = array(
 				'prio' => $key,
 				'tempname' => $table . '_' . wp_generate_password( 6, false ),
-				'ignore' => false,
+				'callback' => $cb,
 			);
-		}
+        }
 
 		$excluded_tables = apply_filters( 'wp_local_maker_excluded_tables', array() );
 
 		foreach( $excluded_tables as $table ) {
 			$key++;
-			$new[$table] = array(
+			$tables_to_custom_process[$table] = array(
 				'prio' => $key,
 				'tempname' => $table . '_' . wp_generate_password( 6, false ),
-				'ignore' => true,
+				'callback' => false,
 			);
 		}
 
-		self::$tables_info = $new;
+		self::$tables_info = $tables_to_custom_process;
 		return self::$tables_info;
 	}
 
-	protected static function dump_data() {
-		global $wpdb;
-		$files = array();
-		$tables = $wpdb->get_col("SHOW FULL TABLES WHERE Table_Type = 'BASE TABLE'");
-
-		$tables_info = self::get_tables_info();
-
-		$process_queue = array();
-
-		foreach($tables as $table) {
-			if( isset( $tables_info[ $table ] ) ) {
-				$tbl_info = $tables_info[ $table ];
-				if( $tbl_info['ignore'] ) {
-					continue;
-				}
-
-				$process_queue[ $tables_info[ $table ][ 'prio' ] ] = $table;
-			} else {
-				$files[] = self::dump_data_from_table( $table );
-			}
-		}
-
-		ksort( $process_queue, SORT_NUMERIC );
-
-		foreach( $process_queue as $i => $table ) {
-			$real_name = substr($table, strlen( $wpdb->prefix ) );
-			if( is_callable( array( __CLASS__, 'process_' . $real_name ) ) ) {
-				$files[] = call_user_func( array( __CLASS__, 'process_' . $real_name ) );
-				unset($process_queue[$i]);
-			}
-		} 
-
-		if( ! empty( $process_queue ) ) {
-			WP_CLI::warning( sprintf( "Unfinished tables %s.", implode( ', ', $process_queue ) ) );
-		}
-
-		return $files;
-	}
-
-	protected static function process_posts() {
-		global $wpdb;
-		$tables_info = self::get_tables_info();
-		$temp = $tables_info[ $wpdb->posts ][ 'tempname' ];
-
-		$wpdb->query("CREATE TABLE {$temp} LIKE {$wpdb->posts}");
-
-		// Export everything but a few known post types
-		$wpdb->query("REPLACE INTO {$temp}
-			SELECT * FROM {$wpdb->posts} p
-			WHERE p.post_status NOT IN ('auto-draft', 'trash')
-			AND p.post_type NOT IN ( 'post', 'attachment', 'shop_order', 'shop_order_refund', 'product', 'revision', 'shop_subscription', 'scheduled-action', 'wc_user_membership', 'shop_coupon' )");
-
-		// Handle posts
-		$wpdb->query("REPLACE INTO {$temp}
-			SELECT * FROM {$wpdb->posts} p
-			WHERE p.post_status NOT IN ('auto-draft', 'trash')
-			AND p.post_type IN ( 'post' )
-			ORDER BY p.post_date DESC
-			LIMIT 50");
-
-		// Handle orders
-		$wpdb->query("REPLACE INTO {$temp}
-			SELECT * FROM {$wpdb->posts} p
-			WHERE p.post_status NOT IN ('auto-draft', 'trash')
-			AND p.post_type IN ( 'shop_order' )
-			ORDER BY p.post_date DESC
-			LIMIT 50");
-
-        // Handle subscriptions
-        $wpdb->query("REPLACE INTO {$temp}
-            SELECT * FROM {$wpdb->posts} p
-            WHERE p.post_status NOT IN ('auto-draft', 'trash')
-            AND p.post_type IN ( 'shop_subscription' )
-            ORDER BY p.post_date DESC
-            LIMIT 50");
-
-        // Handle subscriptions related orders
-        $wpdb->query("REPLACE INTO {$temp}
-            SELECT p.* FROM {$wpdb->posts} p
-            INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id AND ( pm.meta_key = '_subscription_switch' OR pm.meta_key = '_subscription_renewal' OR pm.meta_key = 'subscription_resubscribe' )
-            WHERE pm.meta_value IN ( SELECT ID FROM {$temp} p2 WHERE p2.post_type = 'shop_subscription' )");
-
-        // Handle subscriptions related actions
-        $wpdb->query("REPLACE INTO {$temp}
-            SELECT * FROM {$wpdb->posts} 
-            WHERE post_type = 'scheduled-action' AND post_content IN ( SELECT CONCAT('{\"subscription_id\":', ID, '}') FROM {$temp} p2 WHERE p2.post_type = 'shop_subscription' )");
-
-        // Handle memberships
-        $wpdb->query("REPLACE INTO {$temp}
-            SELECT * FROM {$wpdb->posts} p
-            WHERE p.post_status NOT IN ('auto-draft', 'trash')
-            AND p.post_type IN ( 'wc_user_membership' )
-            ORDER BY p.post_date DESC
-            LIMIT 50");
-
-        // Handle subscriptions related memberships
-        $wpdb->query("REPLACE INTO {$temp}
-            SELECT p.* FROM {$wpdb->posts} p
-            INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id AND pm.meta_key = '_subscription_id'
-            WHERE p.post_type IN ( 'wc_user_membership' ) AND pm.meta_value IN ( SELECT ID FROM {$temp} p2 WHERE p2.post_type = 'shop_subscription' )");
-
-        // Handle memberships related actions
-        $wpdb->query("REPLACE INTO {$temp}
-            SELECT * FROM {$wpdb->posts} 
-            WHERE post_type = 'scheduled-action' AND post_content IN ( SELECT CONCAT('{\"user_membership_id\":', ID, '}') FROM {$temp} p2 WHERE p2.post_type = 'wc_user_membership' )");
-
-		// Handle refunds
-		$wpdb->query("REPLACE INTO {$temp}
-			SELECT * FROM {$wpdb->posts} p
-			WHERE p.post_status NOT IN ('auto-draft', 'trash')
-			AND p.post_type IN ( 'shop_order_refund' ) AND p.post_parent IN ( SELECT ID FROM {$temp} p2 )");
-
-		// Handle coupons (only copy used)
-		$wpdb->query("CREATE TEMPORARY TABLE wp_list_temp 
-			SELECT oi.order_item_name FROM {$wpdb->prefix}woocommerce_order_items oi
-			WHERE oi.order_id IN ( SELECT ID FROM {$temp} ) AND oi.order_item_type = 'coupon'
-			GROUP BY oi.order_item_name");
-
-		$wpdb->query("REPLACE INTO {$temp}
-			SELECT * FROM {$wpdb->posts} p
-			WHERE p.post_status NOT IN ('auto-draft', 'trash')
-			AND p.post_type IN ( 'shop_coupon' ) AND post_title IN ( SELECT * FROM wp_list_temp )");
-
-		$wpdb->query("DROP TABLE wp_list_temp");
-
-		// Handle products
-		$wpdb->query("REPLACE INTO {$temp}
-			SELECT * FROM {$wpdb->posts} p
-			WHERE p.post_status NOT IN ('auto-draft', 'trash')
-			AND p.post_type IN ( 'product' )");
-
-		// Handle attachments
-		$wpdb->query("REPLACE INTO {$temp}
-			SELECT * FROM {$wpdb->posts} p
-			WHERE p.post_status NOT IN ('auto-draft', 'trash')
-			AND p.post_type IN ( 'attachment' ) AND p.post_parent IN ( SELECT ID FROM {$temp} p2 )");
-
-		// Handle unrelated attachments
-		$wpdb->query("REPLACE INTO {$temp}
-			SELECT * FROM {$wpdb->posts} p
-			WHERE p.post_status NOT IN ('auto-draft', 'trash')
-			AND p.post_type IN ( 'attachment' ) AND p.post_parent = 0
-            ORDER BY p.post_date DESC
-			LIMIT 500");
-
-        // Loop until there's no missing parents
-        do {
-            $affected = $wpdb->query("REPLACE INTO {$temp}
-                SELECT p3.* FROM {$temp} p
-                LEFT JOIN {$temp} p2 ON p2.ID = p.post_parent
-                LEFT JOIN {$wpdb->posts} p3 ON p3.ID = p.post_parent
-                WHERE p.post_parent != 0 AND p2.ID IS NULL AND p3.ID IS NOT NULL");
-        } while( $affected > 0 );
-
-		$file = self::dump_data_from_table( $temp );
-
-		$file = self::adjust_file( $file, "`{$temp}`", "`{$wpdb->posts}`" );
-
-		return $file;
-	}
-
-	protected static function dependant_table_dump( $current, $after = '' ) {
+	public static function dependant_table_dump( $current, $after = '' ) {
 		global $wpdb;
 		$tables_info = self::get_tables_info();
 		$temp = $tables_info[ $current ][ 'tempname' ];
@@ -429,7 +245,14 @@ class Backup_Command extends WP_CLI_Command {
 		return $file;
 	}
 
-	protected static function get_table_keys_group( $table, $prefix = '' ) {
+	public static function dependant_table_dump_single( $current, $dependant, $current_key, $dependant_key ) {
+		global $wpdb;
+		$tables_info = self::get_tables_info();
+		$temp_posts = $tables_info[ $dependant ][ 'tempname' ];
+		return self::dependant_table_dump($current, "WHERE p.{$current_key} IN ( SELECT {$dependant_key} FROM {$temp_posts} p2 GROUP BY {$dependant_key} )");
+	}
+
+	public static function get_table_keys_group( $table, $prefix = '' ) {
 		$keys = self::get_columns( $table )[0];
 		if( $prefix ) {
 			foreach($keys as $i => $key) {
@@ -440,173 +263,46 @@ class Backup_Command extends WP_CLI_Command {
 		return implode(', ', $keys);
 	}
 
-	protected static function dependant_table_dump_single( $current, $dependant, $current_key, $dependant_key ) {
+	protected static function dump_data() {
 		global $wpdb;
+		$files = array();
+		$tables = $wpdb->get_col("SHOW FULL TABLES WHERE Table_Type = 'BASE TABLE'");
+
 		$tables_info = self::get_tables_info();
-		$temp_posts = $tables_info[ $dependant ][ 'tempname' ];
-		return self::dependant_table_dump($current, "WHERE p.{$current_key} IN ( SELECT {$dependant_key} FROM {$temp_posts} p2 GROUP BY {$dependant_key} )");
+
+		$process_queue = array();
+
+		foreach($tables as $table) {
+			if( isset( $tables_info[ $table ] ) ) {
+				$tbl_info = $tables_info[ $table ];
+				if( ! is_callable( $tbl_info['callback'] ) ) {
+					continue;
+				}
+
+				$process_queue[ $tables_info[ $table ][ 'prio' ] ] = $table;
+			} else {
+				$files[] = self::dump_data_from_table( $table );
+			}
+		}
+
+		ksort( $process_queue, SORT_NUMERIC );
+
+		foreach( $process_queue as $i => $table ) {
+			$callback = $tables_info[ $table ][ 'callback' ];
+			if( is_callable( $callback ) ) {
+				$files[] = call_user_func( $callback );
+				unset($process_queue[$i]);
+			}
+		} 
+
+		if( ! empty( $process_queue ) ) {
+			WP_CLI::warning( sprintf( "Unfinished tables %s.", implode( ', ', $process_queue ) ) );
+		}
+
+		return $files;
 	}
 
-	protected static function process_postmeta() {
-		global $wpdb;
-		return self::dependant_table_dump_single($wpdb->postmeta, $wpdb->posts, 'post_id', 'ID');
-	}
-
-	protected static function process_comments() {
-		global $wpdb;
-		return self::dependant_table_dump_single($wpdb->comments, $wpdb->posts, 'comment_post_ID', 'ID');
-	}
-
-	protected static function process_commentmeta() {
-		global $wpdb;
-		return self::dependant_table_dump_single($wpdb->commentmeta, $wpdb->comments, 'comment_id', 'comment_ID');
-	}
-
-	protected static function process_woocommerce_order_items() {
-		global $wpdb;
-		return self::dependant_table_dump_single($wpdb->prefix . 'woocommerce_order_items', $wpdb->posts, 'order_id', 'ID');
-	}
-
-	protected static function process_woocommerce_order_itemmeta() {
-		global $wpdb;
-		return self::dependant_table_dump_single($wpdb->prefix . 'woocommerce_order_itemmeta', $wpdb->prefix . 'woocommerce_order_items', 'order_item_id', 'order_item_id');
-	}
-
-	protected static function process_woocommerce_downloadable_product_permissions() {
-		global $wpdb;
-		return self::dependant_table_dump_single($wpdb->prefix . 'woocommerce_downloadable_product_permissions', $wpdb->posts, 'order_id', 'ID');
-	}
-
-	protected static function process_users() {
-		global $wpdb;
-		$tables_info = self::get_tables_info();
-		$current = $wpdb->users;
-		$temp = $tables_info[ $current ][ 'tempname' ];
-
-		$wpdb->query("CREATE TABLE {$temp} LIKE {$current}");
-
-		// Export administrators
-		$wpdb->query("REPLACE INTO {$temp}
-			SELECT u.* FROM {$current} u 
-			INNER JOIN {$wpdb->usermeta} um ON um.user_id = u.ID AND um.meta_key = 'wp_capabilities'
-			WHERE um.meta_value LIKE '%\"administrator\"%'");
-
-		$temp_posts = $tables_info[ $wpdb->posts ][ 'tempname' ];
-
-		$user_keys = self::get_table_keys_group( $current, 'u' );
-
-		// Export authors
-		$wpdb->query("REPLACE INTO {$temp}
-			SELECT u.* FROM {$current} u 
-			INNER JOIN {$temp_posts} p ON p.post_author = u.ID
-			GROUP BY {$user_keys}");
-
-
-		$temp_postmeta = $tables_info[ $wpdb->postmeta ][ 'tempname' ];
-
-		// Export customers
-		$wpdb->query("REPLACE INTO {$temp}
-			SELECT u.* FROM {$temp_posts} p 
-			INNER JOIN {$temp_postmeta} pm ON p.ID = pm.post_id AND pm.meta_key = '_customer_user'
-			INNER JOIN {$current} u ON u.ID = pm.meta_value
-			GROUP BY {$user_keys}");        
-
-		$file = self::dump_data_from_table( $temp );
-
-		$file = self::adjust_file( $file, "`{$temp}`", "`{$current}`" );
-
-		return $file;
-	}
-
-	protected static function process_usermeta() {
-		global $wpdb;
-		return self::dependant_table_dump_single($wpdb->usermeta, $wpdb->users, 'user_id', 'ID');
-	}
-
-	protected static function process_woocommerce_payment_tokens() {
-		global $wpdb;
-		return self::dependant_table_dump_single($wpdb->prefix . 'woocommerce_payment_tokens', $wpdb->users, 'user_id', 'ID');
-	}
-
-	protected static function process_woocommerce_payment_tokenmeta() {
-		global $wpdb;
-		return self::dependant_table_dump_single($wpdb->prefix . 'woocommerce_payment_tokenmeta', $wpdb->prefix . 'woocommerce_payment_tokens', 'payment_token_id', 'token_id');
-	}
-
-	protected static function process_term_relationships() {
-		global $wpdb;
-		$tables_info = self::get_tables_info();
-		$current = $wpdb->term_relationships;
-		$temp = $tables_info[ $current ][ 'tempname' ];
-
-		$wpdb->query("CREATE TABLE {$temp} LIKE {$current}");
-
-		$temp_posts = $tables_info[ $wpdb->posts ][ 'tempname' ];
-
-		$tr_keys = self::get_table_keys_group( $current, 'tr' );
-
-		// Export post terms
-		$wpdb->query("REPLACE INTO {$temp}
-			SELECT tr.* FROM {$current} tr
-			INNER JOIN {$temp_posts} p ON tr.object_id = p.ID
-			GROUP BY {$tr_keys}");
-
-		$temp_users = $tables_info[ $wpdb->users ][ 'tempname' ];
-
-		// Export potential author terms
-		$wpdb->query("REPLACE INTO {$temp}
-			SELECT tr.* FROM {$current} tr
-			INNER JOIN {$temp_users} u ON tr.object_id = u.ID
-			GROUP BY {$tr_keys}");
-
-		$file = self::dump_data_from_table( $temp );
-
-		$file = self::adjust_file( $file, "`{$temp}`", "`{$current}`" );
-
-		return $file;
-	}
-
-	protected static function process_term_taxonomy() {
-		global $wpdb;
-		return self::dependant_table_dump_single($wpdb->term_taxonomy, $wpdb->term_relationships, 'term_taxonomy_id', 'term_taxonomy_id');
-	}
-
-	protected static function process_terms() {
-		global $wpdb;
-		return self::dependant_table_dump_single($wpdb->terms, $wpdb->term_taxonomy, 'term_id', 'term_id');
-	}
-
-	protected static function process_termmeta() {
-		global $wpdb;
-		return self::dependant_table_dump_single($wpdb->termmeta, $wpdb->terms, 'term_id', 'term_id');
-	}
-
-	protected static function process_ewwwio_images() {
-		global $wpdb;
-		return self::dependant_table_dump_single($wpdb->prefix . 'ewwwio_images', $wpdb->posts, 'id', 'ID');
-	}
-
-	protected static function process_options() {
-		global $wpdb;
-		$tables_info = self::get_tables_info();
-		$current = $wpdb->options;
-		$temp = $tables_info[ $current ][ 'tempname' ];
-
-		$wpdb->query("CREATE TABLE {$temp} LIKE {$current}");
-
-		// Exclude transients
-		$wpdb->query("REPLACE INTO {$temp}
-			SELECT * FROM {$current}
-			WHERE option_name NOT LIKE '\_transient%' && option_name NOT LIKE '\_site\_transient%'");
-
-		$file = self::dump_data_from_table( $temp );
-
-		$file = self::adjust_file( $file, "`{$temp}`", "`{$current}`" );
-
-		return $file;
-	}
-
-	protected static function adjust_file( $file, $find, $replace ) {
+	public static function adjust_file( $file, $find, $replace ) {
 		$lines = [];
 		$source = fopen($file, "r");
 		$target_name = self::get_temp_filename();
@@ -818,6 +514,488 @@ class WP_LMaker_Addon {
 	}
 }
 
+class WP_LMaker_Core {
+    function __construct() {
+        add_filter( 'wp_local_maker_custom_process_tables', array( $this, 'enqueue_process_posts' ), 10);
+        add_filter( 'wp_local_maker_custom_process_tables', array( $this, 'enqueue_process_comments' ), 20);
+        add_filter( 'wp_local_maker_custom_process_tables', array( $this, 'enqueue_process_users' ), 30);
+        add_filter( 'wp_local_maker_custom_process_tables', array( $this, 'enqueue_process_terms' ), 40);
+        add_filter( 'wp_local_maker_custom_process_tables', array( $this, 'enqueue_process_core' ), 50);
+    }
+    function enqueue_process_posts( $tables ) {
+    	global $wpdb;
+        $tables[$wpdb->posts] = array( $this, 'process_posts' );
+        $tables[$wpdb->postmeta] = array( $this, 'process_postmeta' );
+        return $tables;
+    }
+
+    function enqueue_process_comments( $tables ) {
+    	global $wpdb;
+        $tables[$wpdb->comments] = array( $this, 'process_comments' );
+        $tables[$wpdb->commentmeta] = array( $this, 'process_commentmeta' );
+        return $tables;
+    }
+
+    function enqueue_process_users( $tables ) {
+    	global $wpdb;
+        $tables[$wpdb->users] = array( $this, 'process_users' );
+        $tables[$wpdb->usermeta] = array( $this, 'process_usermeta' );
+        return $tables;
+    }
+
+    function enqueue_process_terms( $tables ) {
+    	global $wpdb;
+        $tables[$wpdb->term_relationships] = array( $this, 'process_term_relationships' );
+        $tables[$wpdb->term_taxonomy] = array( $this, 'process_term_taxonomy' );
+        $tables[$wpdb->terms] = array( $this, 'process_terms' );
+        $tables[$wpdb->termmeta] = array( $this, 'process_termmeta' );
+        return $tables;
+    }
+
+    function enqueue_process_core( $tables ) {
+    	global $wpdb;
+        $tables[$wpdb->options] = array( $this, 'process_options' );
+        return $tables;
+    }
+
+	public function process_posts() {
+		global $wpdb;
+		$tables_info = Backup_Command::get_tables_info();
+		$temp = $tables_info[ $wpdb->posts ][ 'tempname' ];
+
+		$wpdb->query("CREATE TABLE {$temp} LIKE {$wpdb->posts}");
+
+		$ignored_post_types = apply_filters( 'wp_local_maker_ignore_straight_post_types', array( 'post', 'attachment', 'revision' ) );
+		foreach( $ignored_post_types as $k => $v ) {
+			$ignored_post_types[$k] = $wpdb->prepare('%s', $v);
+		}
+		$ignored_post_types = implode(',', $ignored_post_types);
+
+		// Export everything but a few known post types
+		$wpdb->query("REPLACE INTO {$temp}
+			SELECT * FROM {$wpdb->posts} p
+			WHERE p.post_status NOT IN ('auto-draft', 'trash')
+			AND p.post_type NOT IN ( {$ignored_post_types} )");
+
+		// Handle posts
+		$wpdb->query("REPLACE INTO {$temp}
+			SELECT * FROM {$wpdb->posts} p
+			WHERE p.post_status NOT IN ('auto-draft', 'trash')
+			AND p.post_type IN ( 'post' )
+			ORDER BY p.post_date DESC
+			LIMIT 50");
+
+		do_action( 'wp_local_maker_posts_after_posts', $tables_info );
+
+		// Handle attachments
+		$wpdb->query("REPLACE INTO {$temp}
+			SELECT * FROM {$wpdb->posts} p
+			WHERE p.post_status NOT IN ('auto-draft', 'trash')
+			AND p.post_type IN ( 'attachment' ) AND p.post_parent IN ( SELECT ID FROM {$temp} p2 )");
+
+		// Handle unrelated attachments
+		$wpdb->query("REPLACE INTO {$temp}
+			SELECT * FROM {$wpdb->posts} p
+			WHERE p.post_status NOT IN ('auto-draft', 'trash')
+			AND p.post_type IN ( 'attachment' ) AND p.post_parent = 0
+            ORDER BY p.post_date DESC
+			LIMIT 500");
+
+        // Loop until there's no missing parents
+        do {
+            $affected = $wpdb->query("REPLACE INTO {$temp}
+                SELECT p3.* FROM {$temp} p
+                LEFT JOIN {$temp} p2 ON p2.ID = p.post_parent
+                LEFT JOIN {$wpdb->posts} p3 ON p3.ID = p.post_parent
+                WHERE p.post_parent != 0 AND p2.ID IS NULL AND p3.ID IS NOT NULL");
+        } while( $affected > 0 );
+
+		$file = Backup_Command::dump_data_from_table( $temp );
+
+		$file = Backup_Command::adjust_file( $file, "`{$temp}`", "`{$wpdb->posts}`" );
+
+		return $file;
+	}
+
+	public function process_postmeta() {
+		global $wpdb;
+		return Backup_Command::dependant_table_dump_single($wpdb->postmeta, $wpdb->posts, 'post_id', 'ID');
+	}
+
+	public function process_comments() {
+		global $wpdb;
+		return Backup_Command::dependant_table_dump_single($wpdb->comments, $wpdb->posts, 'comment_post_ID', 'ID');
+	}
+
+	public function process_commentmeta() {
+		global $wpdb;
+		return Backup_Command::dependant_table_dump_single($wpdb->commentmeta, $wpdb->comments, 'comment_id', 'comment_ID');
+	}
+
+	public function process_users() {
+		global $wpdb;
+		$tables_info = Backup_Command::get_tables_info();
+		$current = $wpdb->users;
+		$temp = $tables_info[ $current ][ 'tempname' ];
+
+		$wpdb->query("CREATE TABLE {$temp} LIKE {$current}");
+
+		// Export administrators
+		$wpdb->query("REPLACE INTO {$temp}
+			SELECT u.* FROM {$current} u 
+			INNER JOIN {$wpdb->usermeta} um ON um.user_id = u.ID AND um.meta_key = 'wp_capabilities'
+			WHERE um.meta_value LIKE '%\"administrator\"%'");
+
+		do_action( 'wp_local_maker_users_after_admins', $tables_info, $current, $temp );
+
+		$temp_posts = $tables_info[ $wpdb->posts ][ 'tempname' ];
+
+		$user_keys = Backup_Command::get_table_keys_group( $current, 'u' );
+
+		// Export authors
+		$wpdb->query("REPLACE INTO {$temp}
+			SELECT u.* FROM {$current} u 
+			INNER JOIN {$temp_posts} p ON p.post_author = u.ID
+			GROUP BY {$user_keys}");
+
+		do_action( 'wp_local_maker_users_after_authors', $tables_info, $current, $temp );     
+
+		$file = Backup_Command::dump_data_from_table( $temp );
+
+		$file = Backup_Command::adjust_file( $file, "`{$temp}`", "`{$current}`" );
+
+		return $file;
+	}
+
+	public function process_usermeta() {
+		global $wpdb;
+		return Backup_Command::dependant_table_dump_single($wpdb->usermeta, $wpdb->users, 'user_id', 'ID');
+	}
+
+	public function process_term_relationships() {
+		global $wpdb;
+		$tables_info = Backup_Command::get_tables_info();
+		$current = $wpdb->term_relationships;
+		$temp = $tables_info[ $current ][ 'tempname' ];
+
+		$wpdb->query("CREATE TABLE {$temp} LIKE {$current}");
+
+		$temp_posts = $tables_info[ $wpdb->posts ][ 'tempname' ];
+
+		$tr_keys = Backup_Command::get_table_keys_group( $current, 'tr' );
+
+		// Export post terms
+		$wpdb->query("REPLACE INTO {$temp}
+			SELECT tr.* FROM {$current} tr
+			INNER JOIN {$temp_posts} p ON tr.object_id = p.ID
+			GROUP BY {$tr_keys}");
+
+		$temp_users = $tables_info[ $wpdb->users ][ 'tempname' ];
+
+		// Export potential author terms
+		$wpdb->query("REPLACE INTO {$temp}
+			SELECT tr.* FROM {$current} tr
+			INNER JOIN {$temp_users} u ON tr.object_id = u.ID
+			GROUP BY {$tr_keys}");
+
+		$file = Backup_Command::dump_data_from_table( $temp );
+
+		$file = Backup_Command::adjust_file( $file, "`{$temp}`", "`{$current}`" );
+
+		return $file;
+	}
+
+	public function process_term_taxonomy() {
+		global $wpdb;
+		return Backup_Command::dependant_table_dump_single($wpdb->term_taxonomy, $wpdb->term_relationships, 'term_taxonomy_id', 'term_taxonomy_id');
+	}
+
+	public function process_terms() {
+		global $wpdb;
+		return Backup_Command::dependant_table_dump_single($wpdb->terms, $wpdb->term_taxonomy, 'term_id', 'term_id');
+	}
+
+	public function process_termmeta() {
+		global $wpdb;
+		return Backup_Command::dependant_table_dump_single($wpdb->termmeta, $wpdb->terms, 'term_id', 'term_id');
+	}
+
+	public function process_options() {
+		global $wpdb;
+		$tables_info = Backup_Command::get_tables_info();
+		$current = $wpdb->options;
+		$temp = $tables_info[ $current ][ 'tempname' ];
+
+		$wpdb->query("CREATE TABLE {$temp} LIKE {$current}");
+
+		// Exclude transients
+		$wpdb->query("REPLACE INTO {$temp}
+			SELECT * FROM {$current}
+			WHERE option_name NOT LIKE '\_transient%' && option_name NOT LIKE '\_site\_transient%'");
+
+		$file = Backup_Command::dump_data_from_table( $temp );
+
+		$file = Backup_Command::adjust_file( $file, "`{$temp}`", "`{$current}`" );
+
+		return $file;
+	}
+}
+new WP_LMaker_Core();
+
+class WP_LMaker_WooCommerce extends WP_LMaker_Addon {
+	function __construct() {
+		parent::__construct();
+        add_filter( 'wp_local_maker_custom_process_tables', array( $this, 'enqueue_process_order_items' ), 25);
+        add_filter( 'wp_local_maker_custom_process_tables', array( $this, 'enqueue_process_download_permissions' ), 27);
+        add_filter( 'wp_local_maker_custom_process_tables', array( $this, 'enqueue_process_payment_tokens' ), 35);
+        add_action( 'wp_local_maker_users_after_authors', array($this, 'process_customers'));
+        add_filter( 'wp_local_maker_ignore_straight_post_types', array( $this, 'ignore_straight_post_types' ) );
+        add_action( 'wp_local_maker_posts_after_posts', array( $this, 'process_orders' ) );
+        add_action( 'wp_local_maker_posts_after_posts', array( $this, 'process_coupons' ) );
+        add_action( 'wp_local_maker_posts_after_posts', array( $this, 'process_products' ) );
+    }
+
+    function ignore_straight_post_types($types) {
+    	$types[] = 'shop_order';
+    	$types[] = 'shop_order_refund';
+    	$types[] = 'shop_coupon';
+    	$types[] = 'product';
+    	return $types;
+    }
+
+    function enqueue_process_order_items( $tables ) {
+    	global $wpdb;
+        $tables[$wpdb->prefix . 'woocommerce_order_items'] = array( $this, 'process_woocommerce_order_items' );
+        $tables[$wpdb->prefix . 'woocommerce_order_itemmeta'] = array( $this, 'process_woocommerce_order_itemmeta' );
+        return $tables;
+    }
+
+    function enqueue_process_download_permissions( $tables ) {
+    	global $wpdb;
+        $tables[$wpdb->prefix . 'woocommerce_downloadable_product_permissions'] = array( $this, 'process_woocommerce_downloadable_product_permissions' );
+        return $tables;
+    }
+
+    function enqueue_process_payment_tokens( $tables ) {
+    	global $wpdb;
+        $tables[$wpdb->prefix . 'woocommerce_payment_tokens'] = array( $this, 'process_woocommerce_payment_tokens' );
+        $tables[$wpdb->prefix . 'woocommerce_payment_tokenmeta'] = array( $this, 'process_woocommerce_payment_tokenmeta' );
+        return $tables;
+    }
+
+	public function process_woocommerce_order_items() {
+		global $wpdb;
+		return Backup_Command::dependant_table_dump_single($wpdb->prefix . 'woocommerce_order_items', $wpdb->posts, 'order_id', 'ID');
+	}
+
+	public function process_woocommerce_order_itemmeta() {
+		global $wpdb;
+		return Backup_Command::dependant_table_dump_single($wpdb->prefix . 'woocommerce_order_itemmeta', $wpdb->prefix . 'woocommerce_order_items', 'order_item_id', 'order_item_id');
+	}
+
+	public function process_woocommerce_downloadable_product_permissions() {
+		global $wpdb;
+		return Backup_Command::dependant_table_dump_single($wpdb->prefix . 'woocommerce_downloadable_product_permissions', $wpdb->posts, 'order_id', 'ID');
+	}
+
+	public function process_woocommerce_payment_tokens() {
+		global $wpdb;
+		return Backup_Command::dependant_table_dump_single($wpdb->prefix . 'woocommerce_payment_tokens', $wpdb->users, 'user_id', 'ID');
+	}
+
+	public function process_woocommerce_payment_tokenmeta() {
+		global $wpdb;
+		return Backup_Command::dependant_table_dump_single($wpdb->prefix . 'woocommerce_payment_tokenmeta', $wpdb->prefix . 'woocommerce_payment_tokens', 'payment_token_id', 'token_id');
+	}
+
+	public function process_orders( $tables_info ){
+    	global $wpdb;
+		$current = $wpdb->posts;
+		$temp = $tables_info[ $current ][ 'tempname' ];
+
+		// Handle orders
+		$wpdb->query("REPLACE INTO {$temp}
+			SELECT * FROM {$wpdb->posts} p
+			WHERE p.post_status NOT IN ('auto-draft', 'trash')
+			AND p.post_type IN ( 'shop_order' )
+			ORDER BY p.post_date DESC
+			LIMIT 50");
+
+		do_action( 'wp_local_maker_orders_after_orders', $tables_info );
+
+		// Handle refunds
+		$wpdb->query("REPLACE INTO {$temp}
+			SELECT * FROM {$wpdb->posts} p
+			WHERE p.post_status NOT IN ('auto-draft', 'trash')
+			AND p.post_type IN ( 'shop_order_refund' ) AND p.post_parent IN ( SELECT ID FROM {$temp} p2 )");
+	}
+
+	public function process_coupons( $tables_info ){
+    	global $wpdb;
+		$current = $wpdb->posts;
+		$temp = $tables_info[ $current ][ 'tempname' ];
+
+		// Handle coupons (only copy used)
+		$wpdb->query("CREATE TEMPORARY TABLE wp_list_temp 
+			SELECT oi.order_item_name FROM {$wpdb->prefix}woocommerce_order_items oi
+			WHERE oi.order_id IN ( SELECT ID FROM {$temp} ) AND oi.order_item_type = 'coupon'
+			GROUP BY oi.order_item_name");
+
+		$wpdb->query("REPLACE INTO {$temp}
+			SELECT * FROM {$wpdb->posts} p
+			WHERE p.post_status NOT IN ('auto-draft', 'trash')
+			AND p.post_type IN ( 'shop_coupon' ) AND post_title IN ( SELECT * FROM wp_list_temp )");
+
+		$wpdb->query("DROP TABLE wp_list_temp");
+	}
+
+	public function process_products( $tables_info ){
+    	global $wpdb;
+		$current = $wpdb->posts;
+		$temp = $tables_info[ $current ][ 'tempname' ];
+
+		// Handle products
+		$wpdb->query("REPLACE INTO {$temp}
+			SELECT * FROM {$wpdb->posts} p
+			WHERE p.post_status NOT IN ('auto-draft', 'trash')
+			AND p.post_type IN ( 'product' )");
+	}
+
+	public function process_customers( $tables_info ) {
+    	global $wpdb;
+		$current = $wpdb->users;
+		$temp = $tables_info[ $current ][ 'tempname' ];
+		$temp_posts = $tables_info[ $wpdb->posts ][ 'tempname' ];
+		$temp_postmeta = $tables_info[ $wpdb->postmeta ][ 'tempname' ];
+		$user_keys = Backup_Command::get_table_keys_group( $current, 'u' );
+
+		// Export customers
+		$wpdb->query("REPLACE INTO {$temp}
+			SELECT u.* FROM {$temp_posts} p 
+			INNER JOIN {$temp_postmeta} pm ON p.ID = pm.post_id AND pm.meta_key = '_customer_user'
+			INNER JOIN {$current} u ON u.ID = pm.meta_value
+			GROUP BY {$user_keys}");   
+	}
+
+	function excluded_tables( $tables ) {
+		global $wpdb;
+		$tables[] = $wpdb->prefix . 'wc_download_log';
+		$tables[] = $wpdb->prefix . 'woocommerce_sessions';
+		$tables[] = $wpdb->prefix . 'woocommerce_log';
+		return $tables;
+	}
+}
+new WP_LMaker_WooCommerce();
+
+class WP_LMaker_WooCommerce_Subscriptions extends WP_LMaker_Addon {
+	function __construct() {
+		parent::__construct();
+        add_filter( 'wp_local_maker_ignore_straight_post_types', array( $this, 'ignore_straight_post_types' ) );
+        add_action( 'wp_local_maker_orders_after_orders', array( $this, 'process_subscriptions' ) );
+    }
+
+    function process_subscriptions( $tables_info ) {
+    	global $wpdb;
+		$current = $wpdb->posts;
+		$temp = $tables_info[ $current ][ 'tempname' ];
+
+    	// Handle subscriptions
+        $wpdb->query("REPLACE INTO {$temp}
+            SELECT * FROM {$wpdb->posts} p
+            WHERE p.post_status NOT IN ('auto-draft', 'trash')
+            AND p.post_type IN ( 'shop_subscription' )
+            ORDER BY p.post_date DESC
+            LIMIT 50");
+
+        // Handle subscriptions related orders
+        $wpdb->query("REPLACE INTO {$temp}
+            SELECT p.* FROM {$wpdb->posts} p
+            INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id AND ( pm.meta_key = '_subscription_switch' OR pm.meta_key = '_subscription_renewal' OR pm.meta_key = 'subscription_resubscribe' )
+            WHERE pm.meta_value IN ( SELECT ID FROM {$temp} p2 WHERE p2.post_type = 'shop_subscription' )");
+
+        do_action( 'wp_local_maker_subscriptions_after_subscriptions', $tables_info );
+    }
+
+    function ignore_straight_post_types($types) {
+    	$types[] = 'shop_subscription';
+    	return $types;
+    }
+}
+new WP_LMaker_WooCommerce_Subscriptions();
+
+class WP_LMaker_WooCommerce_Memberships extends WP_LMaker_Addon {
+	function __construct() {
+		parent::__construct();
+        add_filter( 'wp_local_maker_ignore_straight_post_types', array( $this, 'ignore_straight_post_types' ) );
+        add_action( 'wp_local_maker_orders_after_orders', array( $this, 'process_memberships' ) );
+    }
+
+    function process_memberships( $tables_info ) {
+    	global $wpdb;
+		$current = $wpdb->posts;
+		$temp = $tables_info[ $current ][ 'tempname' ];
+
+        // Handle memberships
+        $wpdb->query("REPLACE INTO {$temp}
+            SELECT * FROM {$wpdb->posts} p
+            WHERE p.post_status NOT IN ('auto-draft', 'trash')
+            AND p.post_type IN ( 'wc_user_membership' )
+            ORDER BY p.post_date DESC
+            LIMIT 50");
+
+        // Handle subscriptions related memberships
+        $wpdb->query("REPLACE INTO {$temp}
+            SELECT p.* FROM {$wpdb->posts} p
+            INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id AND pm.meta_key = '_subscription_id'
+            WHERE p.post_type IN ( 'wc_user_membership' ) AND pm.meta_value IN ( SELECT ID FROM {$temp} p2 WHERE p2.post_type = 'shop_subscription' )");
+
+        do_action( 'wp_local_maker_memberships_after_memberships', $tables_info );
+    }
+
+    function ignore_straight_post_types($types) {
+    	$types[] = 'wc_user_membership';
+    	return $types;
+    }
+}
+new WP_LMaker_WooCommerce_Memberships();
+
+class WP_LMaker_Action_Scheduler extends WP_LMaker_Addon {
+	function __construct() {
+		parent::__construct();
+        add_filter( 'wp_local_maker_ignore_straight_post_types', array( $this, 'ignore_straight_post_types' ) );
+        add_action( 'wp_local_maker_subscriptions_after_subscriptions', array( $this, 'process_subscriptions_actions' ) );
+        add_action( 'wp_local_maker_memberships_after_memberships', array( $this, 'process_memberships_actions' ) );
+    }
+
+    function process_subscriptions_actions( $tables_info ) {
+    	global $wpdb;
+		$current = $wpdb->posts;
+		$temp = $tables_info[ $current ][ 'tempname' ];
+
+        // Handle subscriptions related actions
+        $wpdb->query("REPLACE INTO {$temp}
+            SELECT * FROM {$wpdb->posts} 
+            WHERE post_type = 'scheduled-action' AND post_content IN ( SELECT CONCAT('{\"subscription_id\":', ID, '}') FROM {$temp} p2 WHERE p2.post_type = 'shop_subscription' )");
+    }
+
+    function process_memberships_actions( $tables_info ) {
+    	global $wpdb;
+		$current = $wpdb->posts;
+		$temp = $tables_info[ $current ][ 'tempname' ];
+
+        // Handle memberships related actions
+        $wpdb->query("REPLACE INTO {$temp}
+            SELECT * FROM {$wpdb->posts} 
+            WHERE post_type = 'scheduled-action' AND post_content IN ( SELECT CONCAT('{\"user_membership_id\":', ID, '}') FROM {$temp} p2 WHERE p2.post_type = 'wc_user_membership' )");
+    }
+
+    function ignore_straight_post_types($types) {
+    	$types[] = 'scheduled-action';
+    	return $types;
+    }
+}
+new WP_LMaker_Action_Scheduler();
+
 class WP_LMaker_Gravity_Forms extends WP_LMaker_Addon {
 	function excluded_tables( $tables ) {
 		global $wpdb;
@@ -836,17 +1014,6 @@ class WP_LMaker_Gravity_Forms extends WP_LMaker_Addon {
 	}
 }
 new WP_LMaker_Gravity_Forms();
-
-class WP_LMaker_WooCommerce extends WP_LMaker_Addon {
-	function excluded_tables( $tables ) {
-		global $wpdb;
-		$tables[] = $wpdb->prefix . 'wc_download_log';
-		$tables[] = $wpdb->prefix . 'woocommerce_sessions';
-		$tables[] = $wpdb->prefix . 'woocommerce_log';
-		return $tables;
-	}
-}
-new WP_LMaker_WooCommerce();
 
 class WP_LMaker_Redirection extends WP_LMaker_Addon {
 	function excluded_tables( $tables ) {
@@ -894,3 +1061,22 @@ class WP_LMaker_Order_Generator extends WP_LMaker_Addon {
 	}
 }
 new WP_LMaker_Order_Generator();
+
+class WP_LMaker_EWWWIO extends WP_LMaker_Addon {
+	function __construct() {
+		parent::__construct();
+        add_filter( 'wp_local_maker_custom_process_tables', array( $this, 'enqueue_process_ewwio' ), 45);
+    }
+
+    function enqueue_process_ewwio( $tables ) {
+    	global $wpdb;
+        $tables[$wpdb->prefix . 'ewwwio_images'] = array( $this, 'process_ewwwio_images' );
+        return $tables;
+    }
+
+	public function process_ewwwio_images() {
+		global $wpdb;
+		return Backup_Command::dependant_table_dump_single($wpdb->prefix . 'ewwwio_images', $wpdb->posts, 'id', 'ID');
+	}
+}
+new WP_LMaker_EWWWIO();
