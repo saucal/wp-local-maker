@@ -242,6 +242,18 @@ class Backup_Command extends WP_CLI_Command {
 			$new[$table] = array(
 				'prio' => $key,
 				'tempname' => $table . '_' . wp_generate_password( 6, false ),
+				'ignore' => false,
+			);
+		}
+
+		$excluded_tables = apply_filters( 'wp_local_maker_excluded_tables', array() );
+
+		foreach( $excluded_tables as $table ) {
+			$key++;
+			$new[$table] = array(
+				'prio' => $key,
+				'tempname' => $table . '_' . wp_generate_password( 6, false ),
+				'ignore' => true,
 			);
 		}
 
@@ -259,46 +271,12 @@ class Backup_Command extends WP_CLI_Command {
 		$process_queue = array();
 
 		foreach($tables as $table) {
-			switch ($table) {
-				// Order Generator
-				case 'fakenames':
-
-				// WooCommerce
-				case $wpdb->prefix . 'wc_download_log':
-				case $wpdb->prefix . 'woocommerce_sessions':
-				case $wpdb->prefix . 'woocommerce_log':
-
-				// Redirection
-				case $wpdb->prefix . 'redirection_logs':
-				case $wpdb->prefix . 'redirection_404':
-
-				// Smart Transients
-				case $wpdb->prefix . 'sch_smart_transients':
-
-				// Gravity Forms
-				case $wpdb->prefix . 'gf_entry':
-				case $wpdb->prefix . 'gf_entry_meta':
-				case $wpdb->prefix . 'gf_entry_notes':
-				case $wpdb->prefix . 'gf_form_view':
-				case $wpdb->prefix . 'rg_lead':
-				case $wpdb->prefix . 'rg_lead_detail':
-				case $wpdb->prefix . 'rg_lead_detail_long':
-				case $wpdb->prefix . 'rg_lead_meta':
-				case $wpdb->prefix . 'rg_lead_notes':
-				case $wpdb->prefix . 'rg_form_view':
-				case $wpdb->prefix . 'rg_incomplete_submissions':
-
-				// Affiliate WP
-				case $wpdb->prefix . 'affiliate_wp_visits':
-
-				// Abandoned Cart
-				case $wpdb->prefix . 'ac_abandoned_cart_history':
-				case $wpdb->prefix . 'ac_guest_abandoned_cart_history':
-					continue 2;
-					break;
-			}
-
 			if( isset( $tables_info[ $table ] ) ) {
+				$tbl_info = $tables_info[ $table ];
+				if( $tbl_info['ignore'] ) {
+					continue;
+				}
+
 				$process_queue[ $tables_info[ $table ][ 'prio' ] ] = $table;
 			} else {
 				$files[] = self::dump_data_from_table( $table );
@@ -844,3 +822,89 @@ class Backup_Command extends WP_CLI_Command {
 }
 
 WP_CLI::add_command( 'backup', 'Backup_Command' );
+
+class WP_LMaker_Addon {
+	function __construct() {
+		add_filter( 'wp_local_maker_excluded_tables', array( $this, 'excluded_tables' ) );
+	}
+	function excluded_tables( $tables ) {
+		return $tables;
+	}
+}
+
+class WP_LMaker_Gravity_Forms extends WP_LMaker_Addon {
+	function excluded_tables( $tables ) {
+		global $wpdb;
+		$tables[] = $wpdb->prefix . 'gf_entry';
+		$tables[] = $wpdb->prefix . 'gf_entry_meta';
+		$tables[] = $wpdb->prefix . 'gf_entry_notes';
+		$tables[] = $wpdb->prefix . 'gf_form_view';
+		$tables[] = $wpdb->prefix . 'rg_lead';
+		$tables[] = $wpdb->prefix . 'rg_lead_detail';
+		$tables[] = $wpdb->prefix . 'rg_lead_detail_long';
+		$tables[] = $wpdb->prefix . 'rg_lead_meta';
+		$tables[] = $wpdb->prefix . 'rg_lead_notes';
+		$tables[] = $wpdb->prefix . 'rg_form_view';
+		$tables[] = $wpdb->prefix . 'rg_incomplete_submissions';
+		return $tables;
+	}
+}
+new WP_LMaker_Gravity_Forms();
+
+class WP_LMaker_WooCommerce extends WP_LMaker_Addon {
+	function excluded_tables( $tables ) {
+		global $wpdb;
+		$tables[] = $wpdb->prefix . 'wc_download_log';
+		$tables[] = $wpdb->prefix . 'woocommerce_sessions';
+		$tables[] = $wpdb->prefix . 'woocommerce_log';
+		return $tables;
+	}
+}
+new WP_LMaker_WooCommerce();
+
+class WP_LMaker_Redirection extends WP_LMaker_Addon {
+	function excluded_tables( $tables ) {
+		global $wpdb;
+		$tables[] = $wpdb->prefix . 'redirection_logs';
+		$tables[] = $wpdb->prefix . 'redirection_404';
+		return $tables;
+	}
+}
+new WP_LMaker_Redirection();
+
+class WP_LMaker_SCH_Smart_Transients extends WP_LMaker_Addon {
+	function excluded_tables( $tables ) {
+		global $wpdb;
+		$tables[] = $wpdb->prefix . 'sch_smart_transients';
+		return $tables;
+	}
+}
+new WP_LMaker_SCH_Smart_Transients();
+
+class WP_LMaker_Affiliate_WP extends WP_LMaker_Addon {
+	function excluded_tables( $tables ) {
+		global $wpdb;
+		$tables[] = $wpdb->prefix . 'affiliate_wp_visits';
+		return $tables;
+	}
+}
+new WP_LMaker_Affiliate_WP();
+
+class WP_LMaker_Abandoned_Carts_Pro extends WP_LMaker_Addon {
+	function excluded_tables( $tables ) {
+		global $wpdb;
+		$tables[] = $wpdb->prefix . 'ac_abandoned_cart_history';
+		$tables[] = $wpdb->prefix . 'ac_guest_abandoned_cart_history';
+		return $tables;
+	}
+}
+new WP_LMaker_Abandoned_Carts_Pro();
+
+class WP_LMaker_Order_Generator extends WP_LMaker_Addon {
+	function excluded_tables( $tables ) {
+		global $wpdb;
+		$tables[] = 'fakenames';
+		return $tables;
+	}
+}
+new WP_LMaker_Order_Generator();
