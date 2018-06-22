@@ -231,6 +231,8 @@ class Backup_Command extends WP_CLI_Command {
 			$wpdb->term_taxonomy,
 			$wpdb->terms,
 			$wpdb->termmeta,
+			// EWWIO
+			$wpdb->prefix . 'ewwwio_images',
 			// Core related
 			$wpdb->options,
 		);
@@ -613,6 +615,11 @@ class Backup_Command extends WP_CLI_Command {
 	protected static function process_termmeta() {
 		global $wpdb;
 		return self::dependant_table_dump_single($wpdb->termmeta, $wpdb->terms, 'term_id', 'term_id');
+	}
+
+	protected static function process_ewwwio_images() {
+		global $wpdb;
+		return self::dependant_table_dump_single($wpdb->prefix . 'ewwwio_images', $wpdb->posts, 'id', 'ID');
 	}
 
 	protected static function process_options() {
