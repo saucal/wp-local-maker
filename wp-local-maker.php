@@ -196,11 +196,11 @@ class Backup_Command extends WP_CLI_Command {
 
 		global $wpdb;
 
-		WP_CLI::line( sprintf( 'Exporting %d rows from %s', $wpdb->get_var( "SELECT COUNT(*) FROM {$table}" ), $table ) );
-
 		self::run( $escaped_command, array(
 			'result-file' => $this_table_file,
 		) );
+
+		WP_CLI::line( sprintf( 'Exported %d rows from %s. Export size: %s', $wpdb->get_var( "SELECT COUNT(*) FROM {$table}" ), $table, size_format( filesize( $this_table_file ) ) ) );
 
 		return $this_table_file;
 	}
