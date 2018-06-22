@@ -739,22 +739,6 @@ class Backup_Command extends WP_CLI_Command {
 		WP_CLI::success( sprintf( "Imported from '%s'.", $result_file ) );
 	}
 
-	private static function get_create_query() {
-
-		$create_query = sprintf( 'CREATE DATABASE %s', self::esc_sql_ident( DB_NAME ) );
-		if ( defined( 'DB_CHARSET' ) && constant( 'DB_CHARSET' ) ) {
-			$create_query .= sprintf( ' DEFAULT CHARSET %s', self::esc_sql_ident( DB_CHARSET ) );
-		}
-		if ( defined( 'DB_COLLATE' ) && constant( 'DB_COLLATE' ) ) {
-			$create_query .= sprintf( ' DEFAULT COLLATE %s', self::esc_sql_ident( DB_COLLATE ) );
-		}
-		return $create_query;
-	}
-
-	private static function run_query( $query, $assoc_args = array() ) {
-		self::run( '/usr/bin/env mysql --no-defaults --no-auto-rehash', array_merge( $assoc_args, array( 'execute' => $query ) ) );
-	}
-
 	private static function run( $cmd, $assoc_args = array(), $descriptors = null ) {
 		$required = array(
 			'host' => DB_HOST,
@@ -856,36 +840,6 @@ class Backup_Command extends WP_CLI_Command {
 			return $backtick( $idents );
 		}
 		return array_map( $backtick, $idents );
-	}
-
-	/**
-	 * Gets the color codes from the options if any, and returns the passed in array colorized with 2 elements per entry, a color code (or '') and a reset (or '').
-	 *
-	 * @param array $assoc_args The associative argument array passed to the command.
-	 * @param array $colors Array of default percent color code strings keyed by the 3 color contexts 'table_column', 'id', 'match'.
-	 * @return array Array containing 3 2-element arrays.
-	 */
-	private function get_colors( $assoc_args, $colors ) {
-		$color_reset = WP_CLI::colorize( '%n' );
-
-		$color_codes = implode( '', array_map( function ( $v ) {
-			return substr( $v, 1 );
-		}, array_keys( \cli\Colors::getColors() ) ) );
-
-		$color_codes_regex = '/^(?:%[' . $color_codes . '])*$/';
-
-		foreach ( array_keys( $colors ) as $color_col ) {
-			if ( false !== ( $col_color_flag = \WP_CLI\Utils\get_flag_value( $assoc_args, $color_col . '_color', false ) ) ) {
-				if ( ! preg_match( $color_codes_regex, $col_color_flag, $matches ) ) {
-					WP_CLI::warning( "Unrecognized percent color code '$col_color_flag' for '{$color_col}_color'." );
-				} else {
-					$colors[ $color_col ] = $matches[0];
-				}
-			}
-			$colors[ $color_col ] = $colors[ $color_col ] ? array( WP_CLI::colorize( $colors[ $color_col ] ), $color_reset ) : array( '', '' );
-		}
-
-		return $colors;
 	}
 }
 
