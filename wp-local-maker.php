@@ -141,7 +141,7 @@ class Backup_Command extends WP_CLI_Command {
 		self::cleanup();
 
 		if ( ! $stdout ) {
-			WP_CLI::success( sprintf( "Exported to '%s'.", $result_file ) );
+			WP_CLI::success( sprintf( "Exported to '%s'. Export size: %s", $result_file, size_format( filesize( $result_file ) ) ) );
 		}
 	}
 
