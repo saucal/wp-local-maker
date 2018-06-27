@@ -512,6 +512,10 @@ class WP_LMaker_Addon {
 	function excluded_tables( $tables ) {
 		return $tables;
 	}
+	protected function is_plugin_active( $plugin ) {
+		include_once( ABSPATH . 'wp-admin/includes/plugin.php' );
+		return is_plugin_active( $plugin );
+	}
 }
 
 class WP_LMaker_Core {
@@ -1080,3 +1084,21 @@ class WP_LMaker_EWWWIO extends WP_LMaker_Addon {
 	}
 }
 new WP_LMaker_EWWWIO();
+
+class WP_LMaker_NGG extends WP_LMaker_Addon {
+	function __construct() {
+		parent::__construct();
+        add_filter( 'wp_local_maker_custom_process_tables', array( $this, 'enqueue_process_ngg' ), 45);
+    }
+
+    function enqueue_process_ngg( $tables ) {
+    	global $wpdb;
+    	if( ! $this->is_plugin_active( 'nextgen-gallery/nggallery.php' ) ) {
+    		$tables[$wpdb->prefix . 'ngg_album'] = false;
+    		$tables[$wpdb->prefix . 'ngg_gallery'] = false;
+    		$tables[$wpdb->prefix . 'ngg_pictures'] = false;
+    	}
+        return $tables;
+    }
+}
+new WP_LMaker_NGG();
