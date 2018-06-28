@@ -204,7 +204,7 @@ class Backup_Command extends WP_CLI_Command {
         	$key++;
         	$tables_to_custom_process[$table] = array(
 				'prio' => $key,
-				'tempname' => 'WP_LOCAL_MAKER_TEMP_TABLE_' . $table . '_' . wp_generate_password( 6, false ),
+				'tempname' => '_WPLM_' . $table . '_' . wp_generate_password( 6, false ),
 				'callback' => $cb,
 			);
         }
@@ -215,7 +215,7 @@ class Backup_Command extends WP_CLI_Command {
 			$key++;
 			$tables_to_custom_process[$table] = array(
 				'prio' => $key,
-				'tempname' => 'WP_LOCAL_MAKER_TEMP_TABLE_' . $table . '_' . wp_generate_password( 6, false ),
+				'tempname' => '_WPLM_' . $table . '_' . wp_generate_password( 6, false ),
 				'callback' => false,
 			);
 		}
