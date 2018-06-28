@@ -1089,6 +1089,7 @@ class WP_LMaker_NGG extends WP_LMaker_Addon {
 	function __construct() {
 		parent::__construct();
         add_filter( 'wp_local_maker_custom_process_tables', array( $this, 'enqueue_process_ngg' ), 45);
+        add_filter( 'wp_local_maker_ignore_straight_post_types', array( $this, 'ignore_straight_post_types' ) );
     }
 
     function enqueue_process_ngg( $tables ) {
@@ -1099,6 +1100,13 @@ class WP_LMaker_NGG extends WP_LMaker_Addon {
     		$tables[$wpdb->prefix . 'ngg_pictures'] = false;
     	}
         return $tables;
+    }
+
+    function ignore_straight_post_types($types) {
+    	if( ! $this->is_plugin_active( 'nextgen-gallery/nggallery.php' ) ) {
+    		$types[] = 'ngg_pictures';
+    	}
+    	return $types;
     }
 }
 new WP_LMaker_NGG();
