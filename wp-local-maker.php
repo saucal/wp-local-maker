@@ -1171,3 +1171,22 @@ class WP_LMaker_SCR extends WP_LMaker_Addon {
 	}
 }
 new WP_LMaker_SCR();
+
+class WP_LMaker_WooCommerce_Order_Index extends WP_LMaker_Addon {
+	function __construct() {
+		parent::__construct();
+        add_filter( 'wp_local_maker_custom_process_tables', array( $this, 'enqueue_process_customer_order_index' ), 45);
+    }
+
+    function enqueue_process_customer_order_index( $tables ) {
+    	global $wpdb;
+        $tables[$wpdb->prefix . 'woocommerce_customer_order_index'] = array( $this, 'process_customer_order_index' );
+        return $tables;
+    }
+
+	public function process_customer_order_index() {
+		global $wpdb;
+		return Backup_Command::dependant_table_dump_single($wpdb->prefix . 'woocommerce_customer_order_index', $wpdb->posts, 'order_id', 'ID');
+	}
+}
+new WP_LMaker_WooCommerce_Order_Index();
