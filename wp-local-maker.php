@@ -540,6 +540,7 @@ class WP_LMaker_Core {
         add_filter( 'wp_local_maker_custom_process_tables', array( $this, 'enqueue_process_posts' ), 10);
         add_filter( 'wp_local_maker_custom_process_tables', array( $this, 'enqueue_process_comments' ), 20);
         add_filter( 'wp_local_maker_custom_process_tables', array( $this, 'enqueue_process_users' ), 30);
+        add_action( 'wp_local_maker_before_dump_usermeta', array( $this, 'before_dump_usermeta' ) );
         add_filter( 'wp_local_maker_custom_process_tables', array( $this, 'enqueue_process_terms' ), 40);
         add_filter( 'wp_local_maker_custom_process_tables', array( $this, 'enqueue_process_core' ), 50);
     }
@@ -688,6 +689,13 @@ class WP_LMaker_Core {
 		global $wpdb;
 		return Backup_Command::dependant_table_dump_single($wpdb->usermeta, $wpdb->users, 'user_id', 'ID');
 	}
+
+	public function before_dump_usermeta( $table_name ) {
+    	global $wpdb;
+
+    	$wpdb->query("DELETE FROM {$table_name}
+    		WHERE meta_key = 'session_tokens'");
+    }
 
 	public function process_term_relationships() {
 		global $wpdb;
