@@ -1110,3 +1110,57 @@ class WP_LMaker_NGG extends WP_LMaker_Addon {
     }
 }
 new WP_LMaker_NGG();
+
+class WP_LMaker_SCR extends WP_LMaker_Addon {
+	function __construct() {
+		parent::__construct();
+        add_filter( 'wp_local_maker_custom_process_tables', array( $this, 'enqueue_process_scr' ), 45);
+    }
+
+    function enqueue_process_scr( $tables ) {
+    	global $wpdb;
+        $tables[$wpdb->prefix . 'scr_relationships'] = array( $this, 'process_scr_relationships' );
+        $tables[$wpdb->prefix . 'scr_relationshipmeta'] = array( $this, 'process_scr_relationshipmeta' );
+        return $tables;
+    }
+
+    function process_scr_relationships() {
+    	global $wpdb;
+		$tables_info = Backup_Command::get_tables_info();
+		$current = $wpdb->prefix . 'scr_relationships';
+		$temp = $tables_info[ $current ][ 'tempname' ];
+
+		$wpdb->query("CREATE TABLE {$temp} LIKE {$current}");
+
+		$temp_posts = $tables_info[ $wpdb->posts ][ 'tempname' ];
+		$temp_users = $tables_info[ $wpdb->users ][ 'tempname' ];
+
+		// Export every matching relationship from a user standpoint
+		$wpdb->query("REPLACE INTO {$temp}
+			SELECT * FROM wp_scr_relationships scr 
+			WHERE 
+			scr.object1_type = 'user' AND scr.object1_site = 1 AND scr.object1_id IN ( SELECT ID FROM {$temp_users} )  
+			AND
+			scr.object2_type = 'post' AND scr.object2_site = " . get_current_blog_id() . " AND scr.object2_id IN ( SELECT ID FROM {$temp_posts} )");
+
+		// Export every matching relationship from a post standpoint
+		$wpdb->query("REPLACE INTO {$temp}
+			SELECT * FROM wp_scr_relationships scr 
+			WHERE 
+			scr.object1_type = 'post' AND scr.object1_site = " . get_current_blog_id() . " AND scr.object1_id IN ( SELECT ID FROM {$temp_posts} )
+			AND
+			scr.object2_type = 'user' AND scr.object2_site = 1 AND scr.object2_id IN ( SELECT ID FROM {$temp_users} )");
+
+		$file = Backup_Command::dump_data_from_table( $temp );
+
+		$file = Backup_Command::adjust_file( $file, "`{$temp}`", "`{$current}`" );
+
+		return $file;
+    }	
+
+	public function process_scr_relationshipmeta() {
+		global $wpdb;
+		return Backup_Command::dependant_table_dump_single($wpdb->prefix . 'scr_relationshipmeta', $wpdb->prefix . 'scr_relationships', 'scr_relationship_id', 'rel_id');
+	}
+}
+new WP_LMaker_SCR();
