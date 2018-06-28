@@ -224,6 +224,25 @@ class Backup_Command extends WP_CLI_Command {
 		return self::$tables_info;
 	}
 
+	public static function write_table_file( $table, $replace_name = '' ) {
+		global $wpdb;
+		$table_final_name = $table;
+		if( $replace_name ) {
+			$table_final_name = $replace_name;
+		}
+
+		$clean_table_name = str_replace( $wpdb->prefix, '', $table_final_name );
+		do_action( 'wp_local_maker_before_dump_' . $clean_table_name, $table );		
+
+		$file = self::dump_data_from_table( $table );
+
+		if( $replace_name ) {
+			$file = self::adjust_file( $file, "`{$table}`", "`{$replace_name}`" );
+		}
+
+		return $file;
+	}
+
 	public static function dependant_table_dump( $current, $after = '' ) {
 		global $wpdb;
 		$tables_info = self::get_tables_info();
@@ -238,9 +257,7 @@ class Backup_Command extends WP_CLI_Command {
 
 		$wpdb->query($query);
 
-		$file = self::dump_data_from_table( $temp );
-
-		$file = self::adjust_file( $file, "`{$temp}`", "`{$current}`" );
+		$file = self::write_table_file( $temp, $current );
 
 		return $file;
 	}
@@ -281,7 +298,7 @@ class Backup_Command extends WP_CLI_Command {
 
 				$process_queue[ $tables_info[ $table ][ 'prio' ] ] = $table;
 			} else {
-				$files[] = self::dump_data_from_table( $table );
+				$files[] = self::write_table_file( $table );
 			}
 		}
 
@@ -614,9 +631,7 @@ class WP_LMaker_Core {
                 WHERE p.post_parent != 0 AND p2.ID IS NULL AND p3.ID IS NOT NULL");
         } while( $affected > 0 );
 
-		$file = Backup_Command::dump_data_from_table( $temp );
-
-		$file = Backup_Command::adjust_file( $file, "`{$temp}`", "`{$wpdb->posts}`" );
+		$file = Backup_Command::write_table_file( $temp, $wpdb->posts );
 
 		return $file;
 	}
@@ -664,9 +679,7 @@ class WP_LMaker_Core {
 
 		do_action( 'wp_local_maker_users_after_authors', $tables_info, $current, $temp );     
 
-		$file = Backup_Command::dump_data_from_table( $temp );
-
-		$file = Backup_Command::adjust_file( $file, "`{$temp}`", "`{$current}`" );
+		$file = Backup_Command::write_table_file( $temp, $current );
 
 		return $file;
 	}
@@ -702,9 +715,7 @@ class WP_LMaker_Core {
 			INNER JOIN {$temp_users} u ON tr.object_id = u.ID
 			GROUP BY {$tr_keys}");
 
-		$file = Backup_Command::dump_data_from_table( $temp );
-
-		$file = Backup_Command::adjust_file( $file, "`{$temp}`", "`{$current}`" );
+		$file = Backup_Command::write_table_file( $temp, $current );
 
 		return $file;
 	}
@@ -737,9 +748,7 @@ class WP_LMaker_Core {
 			SELECT * FROM {$current}
 			WHERE option_name NOT LIKE '\_transient%' && option_name NOT LIKE '\_site\_transient%'");
 
-		$file = Backup_Command::dump_data_from_table( $temp );
-
-		$file = Backup_Command::adjust_file( $file, "`{$temp}`", "`{$current}`" );
+		$file = Backup_Command::write_table_file( $temp, $current );
 
 		return $file;
 	}
@@ -1151,9 +1160,7 @@ class WP_LMaker_SCR extends WP_LMaker_Addon {
 			AND
 			scr.object2_type = 'user' AND scr.object2_site = 1 AND scr.object2_id IN ( SELECT ID FROM {$temp_users} )");
 
-		$file = Backup_Command::dump_data_from_table( $temp );
-
-		$file = Backup_Command::adjust_file( $file, "`{$temp}`", "`{$current}`" );
+		$file = Backup_Command::write_table_file( $temp, $current );
 
 		return $file;
     }	
