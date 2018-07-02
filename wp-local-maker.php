@@ -1311,3 +1311,19 @@ class WP_LMaker_WooCommerce_Order_Index extends WP_LMaker_Addon {
 	}
 }
 new WP_LMaker_WooCommerce_Order_Index();
+
+class WP_LMaker_SAD extends WP_LMaker_Addon {
+	function __construct() {
+		parent::__construct();
+        add_filter( 'wp_local_maker_custom_process_tables', array( $this, 'enqueue_process_sad_users' ), 45);
+    }
+
+    function enqueue_process_sad_users( $tables ) {
+    	global $wpdb;
+    	if( ! $this->is_plugin_active( 'halfdata-optin-downloads/halfdata-optin-downloads.php' ) ) {
+    		$tables['sad_users'] = false;
+    	}
+        return $tables;
+    }
+}
+new WP_LMaker_SAD();
