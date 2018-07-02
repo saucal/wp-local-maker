@@ -248,7 +248,7 @@ class Backup_Command extends WP_CLI_Command {
 		$tables_info = self::get_tables_info();
 		$temp = $tables_info[ $current ][ 'tempname' ];
 
-		$wpdb->query("CREATE TABLE {$temp} LIKE {$current}");
+		$wpdb->query("CREATE TABLE IF NOT EXISTS {$temp} LIKE {$current}");
 
 		$query = "REPLACE INTO {$temp} SELECT * FROM {$current} p";
 		if( $after ) {
@@ -585,7 +585,7 @@ class WP_LMaker_Core {
 		$tables_info = Backup_Command::get_tables_info();
 		$temp = $tables_info[ $wpdb->posts ][ 'tempname' ];
 
-		$wpdb->query("CREATE TABLE {$temp} LIKE {$wpdb->posts}");
+		$wpdb->query("CREATE TABLE IF NOT EXISTS {$temp} LIKE {$current}");
 
 		$ignored_post_types = apply_filters( 'wp_local_maker_ignore_straight_post_types', array( 'post', 'attachment', 'revision' ) );
 		foreach( $ignored_post_types as $k => $v ) {
@@ -658,7 +658,7 @@ class WP_LMaker_Core {
 		$current = $wpdb->users;
 		$temp = $tables_info[ $current ][ 'tempname' ];
 
-		$wpdb->query("CREATE TABLE {$temp} LIKE {$current}");
+		$wpdb->query("CREATE TABLE IF NOT EXISTS {$temp} LIKE {$current}");
 
 		// Export administrators
 		$wpdb->query("REPLACE INTO {$temp}
@@ -703,7 +703,7 @@ class WP_LMaker_Core {
 		$current = $wpdb->term_relationships;
 		$temp = $tables_info[ $current ][ 'tempname' ];
 
-		$wpdb->query("CREATE TABLE {$temp} LIKE {$current}");
+		$wpdb->query("CREATE TABLE IF NOT EXISTS {$temp} LIKE {$current}");
 
 		$temp_posts = $tables_info[ $wpdb->posts ][ 'tempname' ];
 
@@ -749,7 +749,7 @@ class WP_LMaker_Core {
 		$current = $wpdb->options;
 		$temp = $tables_info[ $current ][ 'tempname' ];
 
-		$wpdb->query("CREATE TABLE {$temp} LIKE {$current}");
+		$wpdb->query("CREATE TABLE IF NOT EXISTS {$temp} LIKE {$current}");
 
 		// Exclude transients
 		$wpdb->query("REPLACE INTO {$temp}
@@ -1138,7 +1138,7 @@ class WP_LMaker_SCR extends WP_LMaker_Addon {
     	global $wpdb;
         $tables[$wpdb->prefix . 'scr_relationships'] = array( $this, 'process_scr_relationships' );
         $tables[$wpdb->prefix . 'scr_relationshipmeta'] = array( $this, 'process_scr_relationshipmeta' );
-        return $tables;
+    	return $tables;
     }
 
     function process_scr_relationships() {
@@ -1147,7 +1147,7 @@ class WP_LMaker_SCR extends WP_LMaker_Addon {
 		$current = $wpdb->prefix . 'scr_relationships';
 		$temp = $tables_info[ $current ][ 'tempname' ];
 
-		$wpdb->query("CREATE TABLE {$temp} LIKE {$current}");
+		$wpdb->query("CREATE TABLE IF NOT EXISTS {$temp} LIKE {$current}");
 
 		$temp_posts = $tables_info[ $wpdb->posts ][ 'tempname' ];
 		$temp_users = $tables_info[ $wpdb->users ][ 'tempname' ];
