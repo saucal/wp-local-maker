@@ -6,6 +6,9 @@
  * Time: 18:55
  */
 
+/**
+ * Class WP_LMaker_Core
+ */
 class WP_LMaker_Core {
 
 	public function __construct() {

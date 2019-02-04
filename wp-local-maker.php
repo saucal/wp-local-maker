@@ -15,6 +15,6 @@ if ( ! class_exists( 'WP_CLI' ) ) {
 
 require_once __DIR__ . '/includes/Backup_Command.php';
 require_once __DIR__ . '/includes/WP_LMaker_Core.php';
-
+require_once __DIR__ . '/includes/compats/Init_Compats.php';
 
 
