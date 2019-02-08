@@ -11,7 +11,7 @@
  *
  * Class WP_LMaker_WooCommerce_Subscriptions
  */
-class WP_LMaker_WooCommerce_Subscriptions extends WP_LMaker_Addon {
+class WP_LMaker_WooCommerce_Subscriptions extends WP_LMaker_Abstract_Addon {
 
 	function __construct() {
 		parent::__construct();

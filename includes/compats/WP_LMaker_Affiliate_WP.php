@@ -9,7 +9,7 @@
 /**
  * Class WP_LMaker_Affiliate_WP
  */
-class WP_LMaker_Affiliate_WP extends WP_LMaker_Addon {
+class WP_LMaker_Affiliate_WP extends WP_LMaker_Abstract_Addon {
 
 	/**
 	 * @param $tables

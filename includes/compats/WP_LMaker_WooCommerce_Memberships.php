@@ -11,7 +11,7 @@
  *
  * Class WP_LMaker_WooCommerce_Memberships
  */
-class WP_LMaker_WooCommerce_Memberships extends WP_LMaker_Addon {
+class WP_LMaker_WooCommerce_Memberships extends WP_LMaker_Abstract_Addon {
 
 	public function __construct() {
 		parent::__construct();

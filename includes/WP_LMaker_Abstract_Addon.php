@@ -3,7 +3,7 @@
 /**
  * Class WP_LMaker_Addon
  */
-class WP_LMaker_Addon {
+abstract class WP_LMaker_Abstract_Addon {
 
 	public function __construct() {
 		add_filter( 'wp_local_maker_excluded_tables', array( $this, 'excluded_tables' ) );

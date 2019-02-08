@@ -9,7 +9,7 @@
 /**
  * Class WP_LMaker_WooCommerce_Order_Index
  */
-class WP_LMaker_WooCommerce_Order_Index extends WP_LMaker_Addon {
+class WP_LMaker_WooCommerce_Order_Index extends WP_LMaker_Abstract_Addon {
 
 	public function __construct() {
 		parent::__construct();
