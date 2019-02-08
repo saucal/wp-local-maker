@@ -5,7 +5,7 @@
  *
  * Class WP_LMaker_WooCommerce
  */
-class WP_LMaker_Abstract_WooCommerce extends WP_LMaker_Abstract_Addon {
+class WP_LMaker_WooCommerce extends WP_LMaker_Abstract_Addon {
 
 	public function __construct() {
 		parent::__construct();
@@ -162,4 +162,4 @@ class WP_LMaker_Abstract_WooCommerce extends WP_LMaker_Abstract_Addon {
 		return $tables;
 	}
 }
-new WP_LMaker_Abstract_WooCommerce();
+new WP_LMaker_WooCommerce();
