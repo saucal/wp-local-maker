@@ -279,14 +279,18 @@ class Backup_Command extends WP_CLI_Command {
 		$clean_table_name = str_replace( $wpdb->prefix, '', $clean_table_name );
 		$clean_table_name = str_replace( $wpdb->base_prefix, '', $clean_table_name );
 
+		$tables_info = self::get_tables_info();
+		$is_custom = isset( $tables_info[ $clean_table_name ] );
+
 		$table_file = self::get_temp_filename( $table_final_name );
 
-		if ( ! self::$doing_deferred && in_array( $clean_table_name, self::global_tables() ) && ! empty( $replace_name ) ) {
+		if ( ! self::$doing_deferred && in_array( $clean_table_name, self::global_tables() ) && $is_custom ) {
 			self::$deferred_table_dumps[$clean_table_name] = array($table, $replace_name);
 			return $table_file;
 		}
 
 		do_action( 'wp_local_maker_before_dump_' . $clean_table_name, $table );
+		do_action( 'wp_local_maker_before_dump', $table, $clean_table_name );
 
 		$file = self::dump_data_from_table( $table, $table_file );
 
