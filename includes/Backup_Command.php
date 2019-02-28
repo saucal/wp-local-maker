@@ -486,6 +486,10 @@ class Backup_Command extends WP_CLI_Command {
 		$target = fopen( $result_file, 'w' );
 
 		foreach ( $files as $file ) {
+			if( ! file_exists( $file ) ) {
+				continue; // maybe it was already included
+			}
+
 			$source = fopen( $file, 'r' );
 			stream_copy_to_stream( $source, $target );
 			fclose( $source );
