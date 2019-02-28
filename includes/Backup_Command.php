@@ -445,7 +445,8 @@ class Backup_Command extends WP_CLI_Command {
 		fclose( $source );
 		@unlink( $file );
 		fclose( $target );
-		return $target_name;
+		rename( $target_name, $file );
+		return $file;
 	}
 
 	protected static function join_files( $files, $result_file ) {
