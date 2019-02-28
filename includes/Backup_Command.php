@@ -37,6 +37,10 @@ class Backup_Command extends WP_CLI_Command {
 
 	protected static $tables_info = null;
 
+	protected static $deferred_table_dumps = array();
+
+	protected static $doing_deferred = false;
+
 	/**
 	 * Exports the database to a file or to STDOUT.
 	 *
@@ -171,7 +175,7 @@ class Backup_Command extends WP_CLI_Command {
 		return $first_pass;
 	}
 
-	public static function dump_data_from_table( $table, $filename = null ) {
+	public static function dump_data_from_table( $table, $this_table_file = null ) {
 		$command = '/usr/bin/env mysqldump --no-defaults %s --single-transaction --quick';
 		$command_esc_args = array( DB_NAME );
 
@@ -183,7 +187,11 @@ class Backup_Command extends WP_CLI_Command {
 
 		$escaped_command = call_user_func_array( '\WP_CLI\Utils\esc_cmd', array_merge( array( $command ), $command_esc_args ) );
 
-		$this_table_file = self::get_temp_filename( $filename );
+		if( is_null( $this_table_file ) ) {
+			$this_table_file = self::get_temp_filename();
+		}
+
+		@unlink( $this_table_file	);
 
 		global $wpdb;
 
@@ -270,9 +278,17 @@ class Backup_Command extends WP_CLI_Command {
 		$clean_table_name = $table_final_name;
 		$clean_table_name = str_replace( $wpdb->prefix, '', $clean_table_name );
 		$clean_table_name = str_replace( $wpdb->base_prefix, '', $clean_table_name );
+
+		$table_file = self::get_temp_filename( $table_final_name );
+
+		if ( ! self::$doing_deferred && in_array( $clean_table_name, self::global_tables() ) && ! empty( $replace_name ) ) {
+			self::$deferred_table_dumps[$clean_table_name] = array($table, $replace_name);
+			return $table_file;
+		}
+
 		do_action( 'wp_local_maker_before_dump_' . $clean_table_name, $table );
 
-		$file = self::dump_data_from_table( $table, $table_final_name );
+		$file = self::dump_data_from_table( $table, $table_file );
 
 		if ( $replace_name ) {
 			$file = self::adjust_file( $file, "`{$table}`", "`{$replace_name}`" );
@@ -322,6 +338,19 @@ class Backup_Command extends WP_CLI_Command {
 	protected static function global_tables() {
 		global $wpdb;
 		return apply_filters( 'wp_local_maker_global_tables', $wpdb->tables( 'global', false ) );
+	}
+
+	protected static function array_unique_last( $arr ) {
+		$res = array();
+		for ($i = count($arr) - 1; $i >= 0; --$i) {
+			$item = $arr[$i];
+
+			if (!isset($res[$item])) {
+				$res = array($item => $item) + $res; // unshift
+			}
+		}
+
+		return array_values( $res );
 	}
 
 	protected static function dump_data() {
@@ -417,6 +446,16 @@ class Backup_Command extends WP_CLI_Command {
 			}
 		}
 
+		while( ! empty( self::$deferred_table_dumps ) ) {
+			self::$doing_deferred = true;
+
+			$data = array_shift( self::$deferred_table_dumps );
+
+			$files[] = call_user_func_array( array(__CLASS__, 'write_table_file'), $data );
+		}
+
+		$files = self::array_unique_last( $files );
+
 		if ( ! empty( $process_queue ) ) {
 			WP_CLI::warning( sprintf( 'Unfinished tables %s.', implode( ', ', $process_queue ) ) );
 		}
@@ -438,7 +477,8 @@ class Backup_Command extends WP_CLI_Command {
 		fclose( $source );
 		@unlink( $file );
 		fclose( $target );
-		return $target_name;
+		rename( $target_name, $file );
+		return $file;
 	}
 
 	protected static function join_files( $files, $result_file ) {
@@ -446,6 +486,10 @@ class Backup_Command extends WP_CLI_Command {
 		$target = fopen( $result_file, 'w' );
 
 		foreach ( $files as $file ) {
+			if( ! file_exists( $file ) ) {
+				continue; // maybe it was already included
+			}
+
 			$source = fopen( $file, 'r' );
 			stream_copy_to_stream( $source, $target );
 			fclose( $source );
@@ -457,10 +501,9 @@ class Backup_Command extends WP_CLI_Command {
 
 	protected static function cleanup() {
 		global $wpdb;
-		$tables_info = self::get_tables_names();
-		foreach ( $tables_info as $table => $info ) {
-			$temp = $info['tempname'];
-			$wpdb->query( "DROP TABLE IF EXISTS {$temp}" );
+		$tables = $wpdb->get_col("SHOW TABLES LIKE '_WPLM%'");
+		foreach ( $tables as $table ) {
+			$wpdb->query( "DROP TABLE IF EXISTS {$table}" );
 		}
 	}
 

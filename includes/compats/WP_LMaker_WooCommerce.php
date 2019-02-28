@@ -104,6 +104,12 @@ class WP_LMaker_WooCommerce extends WP_LMaker_Abstract_Addon {
 		$temp = $tables_info['posts']['tempname'];
 		$curr_oi = $tables_info['woocommerce_order_items']['currname'];
 
+		$table_exists = $wpdb->get_col("SHOW TABLES LIKE '{$curr_oi}'");
+
+		if( empty( $table_exists ) ) {
+			return;
+		}
+
 		// Handle coupons (only copy used)
 		$wpdb->query(
 			"CREATE TEMPORARY TABLE wp_list_temp 
