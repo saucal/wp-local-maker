@@ -185,6 +185,8 @@ class Backup_Command extends WP_CLI_Command {
 
 		$this_table_file = self::get_temp_filename( $filename );
 
+		@unlink( $this_table_file	);
+
 		global $wpdb;
 
 		self::run(
