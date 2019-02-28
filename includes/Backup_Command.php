@@ -390,7 +390,18 @@ class Backup_Command extends WP_CLI_Command {
 			}
 
 			if ( ! isset( $tables_info[ $internal_key ] ) ) {
-				$files[] = self::write_table_file( $table );
+				$current = $table;
+				$unprefixed_name = $table;
+				if( $prefixed ) {
+					$unprefixed_name = substr( $unprefixed_name, strlen( $wpdb->base_prefix ) );
+				}
+				$temp = self::get_table_name( $unprefixed_name, 'temp', $prefixed );
+
+				$wpdb->query( "CREATE TABLE IF NOT EXISTS {$temp} LIKE {$current}" );
+				$query = "REPLACE INTO {$temp} SELECT * FROM {$current}";
+				$wpdb->query( $query );
+
+				$files[] = self::write_table_file( $temp, $current );
 				continue;
 			}
 
