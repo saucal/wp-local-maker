@@ -37,6 +37,10 @@ class Backup_Command extends WP_CLI_Command {
 
 	protected static $tables_info = null;
 
+	protected static $deferred_table_dumps = array();
+
+	protected static $doing_deferred = false;
+
 	/**
 	 * Exports the database to a file or to STDOUT.
 	 *
@@ -277,6 +281,11 @@ class Backup_Command extends WP_CLI_Command {
 
 		$table_file = self::get_temp_filename( $table_final_name );
 
+		if ( ! self::$doing_deferred && in_array( $clean_table_name, self::global_tables() ) && ! empty( $replace_name ) ) {
+			self::$deferred_table_dumps[$clean_table_name] = array($table, $replace_name);
+			return $table_file;
+		}
+
 		do_action( 'wp_local_maker_before_dump_' . $clean_table_name, $table );
 
 		$file = self::dump_data_from_table( $table, $table_file );
@@ -329,6 +338,19 @@ class Backup_Command extends WP_CLI_Command {
 	protected static function global_tables() {
 		global $wpdb;
 		return apply_filters( 'wp_local_maker_global_tables', $wpdb->tables( 'global', false ) );
+	}
+
+	protected static function array_unique_last( $arr ) {
+		$res = array();
+		for ($i = count($arr) - 1; $i >= 0; --$i) {
+			$item = $arr[$i];
+
+			if (!isset($res[$item])) {
+				$res = array($item => $item) + $res; // unshift
+			}
+		}
+
+		return array_values( $res );
 	}
 
 	protected static function dump_data() {
@@ -423,6 +445,16 @@ class Backup_Command extends WP_CLI_Command {
 				unset( $process_queue[ $blog_id ] );
 			}
 		}
+
+		while( ! empty( self::$deferred_table_dumps ) ) {
+			self::$doing_deferred = true;
+
+			$data = array_shift( self::$deferred_table_dumps );
+
+			$files[] = call_user_func_array( array(__CLASS__, 'write_table_file'), $data );
+		}
+
+		$files = self::array_unique_last( $files );
 
 		if ( ! empty( $process_queue ) ) {
 			WP_CLI::warning( sprintf( 'Unfinished tables %s.', implode( ', ', $process_queue ) ) );
