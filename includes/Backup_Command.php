@@ -501,10 +501,9 @@ class Backup_Command extends WP_CLI_Command {
 
 	protected static function cleanup() {
 		global $wpdb;
-		$tables_info = self::get_tables_names();
-		foreach ( $tables_info as $table => $info ) {
-			$temp = $info['tempname'];
-			$wpdb->query( "DROP TABLE IF EXISTS {$temp}" );
+		$tables = $wpdb->get_col("SHOW TABLES LIKE '_WPLM%'");
+		foreach ( $tables as $table ) {
+			$wpdb->query( "DROP TABLE IF EXISTS {$table}" );
 		}
 	}
 
