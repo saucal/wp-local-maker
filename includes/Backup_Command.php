@@ -171,7 +171,7 @@ class Backup_Command extends WP_CLI_Command {
 		return $first_pass;
 	}
 
-	public static function dump_data_from_table( $table, $filename = null ) {
+	public static function dump_data_from_table( $table, $this_table_file = null ) {
 		$command = '/usr/bin/env mysqldump --no-defaults %s --single-transaction --quick';
 		$command_esc_args = array( DB_NAME );
 
@@ -183,7 +183,9 @@ class Backup_Command extends WP_CLI_Command {
 
 		$escaped_command = call_user_func_array( '\WP_CLI\Utils\esc_cmd', array_merge( array( $command ), $command_esc_args ) );
 
-		$this_table_file = self::get_temp_filename( $filename );
+		if( is_null( $this_table_file ) ) {
+			$this_table_file = self::get_temp_filename();
+		}
 
 		@unlink( $this_table_file	);
 
@@ -272,9 +274,12 @@ class Backup_Command extends WP_CLI_Command {
 		$clean_table_name = $table_final_name;
 		$clean_table_name = str_replace( $wpdb->prefix, '', $clean_table_name );
 		$clean_table_name = str_replace( $wpdb->base_prefix, '', $clean_table_name );
+
+		$table_file = self::get_temp_filename( $table_final_name );
+
 		do_action( 'wp_local_maker_before_dump_' . $clean_table_name, $table );
 
-		$file = self::dump_data_from_table( $table, $table_final_name );
+		$file = self::dump_data_from_table( $table, $table_file );
 
 		if ( $replace_name ) {
 			$file = self::adjust_file( $file, "`{$table}`", "`{$replace_name}`" );
