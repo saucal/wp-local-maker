@@ -137,8 +137,9 @@ class Backup_Command extends WP_CLI_Command {
 		}
 		$stdout = ( '-' === $result_file );
 
-		if( isset( $assoc_args['new-domain'] ) ) {
-			self::$new_domain = $assoc_args['new-domain'];
+		$replace = WP_CLI\Utils\get_flag_value( $assoc_args, 'new-domain', false );
+		if( $replace ) {
+			self::$new_domain = $replace;
 			$old_domain = network_site_url();
 			$old_domain = parse_url( $old_domain );
 			self::$old_domain = $old_domain['host'];
