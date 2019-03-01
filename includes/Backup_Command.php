@@ -622,6 +622,19 @@ class Backup_Command extends WP_CLI_Command {
 
 		echo "\n";
 
+		$source_wp_conf = ABSPATH . "wp-config.php";
+		$target_wp_conf = ABSPATH . "wp-config-wplm-temp.php";
+		$copied = @copy( $source_wp_conf, $target_wp_conf );
+		if( $copied ) {
+			$config_transformer = new WPConfigTransformer( $target_wp_conf );
+			$config_transformer->update( 'constant', 'DOMAIN_CURRENT_SITE', self::$new_domain, array( 'add' => false, 'normalize' => true ) );
+			$config_transformer->remove( 'constant', 'WP_SITEURL' );
+			$config_transformer->remove( 'constant', 'WP_HOME' );
+			$zip->addFile( $target_wp_conf, "wp-config.php" );
+		}
+
+		do_action( 'wp_local_maker_before_closing_zip', $zip );
+
 		/* if( $total_size > 50 * MB_IN_BYTES ) {
 			return new WP_Error("too_large", "Folder is too large to compress");
 		}*/
@@ -631,6 +644,8 @@ class Backup_Command extends WP_CLI_Command {
 
 		// Zip archive will be created only after closing object
 		$zip->close();
+
+		@unlink( $target_wp_conf );
 
 		return $zip_fn;
 	}
