@@ -132,7 +132,7 @@ class Backup_Command extends WP_CLI_Command {
 			$result_file = $args[0];
 		} else {
 			$hash = substr( md5( mt_rand() ), 0, 7 );
-			$result_file = sprintf( '%s-%s-%s.zip', DB_NAME, date( 'Y-m-d' ), $hash );
+			$result_file = sprintf( 'WPLM-%s-%s-%s.zip', DB_NAME, date( 'Y-m-d' ), $hash );
 			;
 		}
 
@@ -563,7 +563,7 @@ class Backup_Command extends WP_CLI_Command {
 		/** @var SplFileInfo[] $files */
 
 		$dir_iterator = new RecursiveDirectoryIterator($rootPath);
-		$dir_iterator_filtered = new WP_LMaker_Dir_Filter( $dir_iterator, array("..", ".git", ".DS_Store") );
+		$dir_iterator_filtered = new WP_LMaker_Dir_Filter( $dir_iterator, array("..", ".git", ".DS_Store", "WPLM-*.zip") );
 		
 		$files = new RecursiveIteratorIterator(
 			$dir_iterator_filtered,

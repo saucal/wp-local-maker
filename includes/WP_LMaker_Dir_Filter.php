@@ -9,7 +9,16 @@ class WP_LMaker_Dir_Filter extends RecursiveFilterIterator
     }
     public function accept()
     {
-        return !(in_array($this->getFilename(), $this->exclude));
+		$file = $this->getFilename();
+		foreach( $this->exclude as $pattern ) {
+			$pattern = str_replace(".", '\.', $pattern);
+			$pattern = str_replace("*", ".*?", $pattern);
+			$match = preg_match('/^'. $pattern .'$/i', $file, $matches);
+			if( ! empty( $matches ) ) {
+				return false; // is excluded
+			}
+		}
+        return true;
     }
     public function getChildren()
     {
