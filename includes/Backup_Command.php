@@ -41,6 +41,10 @@ class Backup_Command extends WP_CLI_Command {
 
 	protected static $doing_deferred = false;
 
+	protected static $new_domain = false;
+
+	protected static $old_domain = false;
+
 	/**
 	 * Exports the database to a file or to STDOUT.
 	 *
@@ -132,6 +136,14 @@ class Backup_Command extends WP_CLI_Command {
 			;
 		}
 		$stdout = ( '-' === $result_file );
+
+		$replace = WP_CLI\Utils\get_flag_value( $assoc_args, 'new-domain', false );
+		if( $replace ) {
+			self::$new_domain = $replace;
+			$old_domain = network_site_url();
+			$old_domain = parse_url( $old_domain );
+			self::$old_domain = $old_domain['host'];
+		}
 
 		$files = array();
 		$files[] = self::dump_structure();
@@ -279,14 +291,32 @@ class Backup_Command extends WP_CLI_Command {
 		$clean_table_name = str_replace( $wpdb->prefix, '', $clean_table_name );
 		$clean_table_name = str_replace( $wpdb->base_prefix, '', $clean_table_name );
 
+		$tables_info = self::get_tables_info();
+		$is_custom = isset( $tables_info[ $clean_table_name ] );
+
 		$table_file = self::get_temp_filename( $table_final_name );
 
-		if ( ! self::$doing_deferred && in_array( $clean_table_name, self::global_tables() ) && ! empty( $replace_name ) ) {
+		if ( ! self::$doing_deferred && in_array( $clean_table_name, self::global_tables() ) && $is_custom ) {
 			self::$deferred_table_dumps[$clean_table_name] = array($table, $replace_name);
 			return $table_file;
 		}
 
 		do_action( 'wp_local_maker_before_dump_' . $clean_table_name, $table );
+		do_action( 'wp_local_maker_before_dump', $table, $clean_table_name );
+
+		if( self::$new_domain ) {
+			if( in_array( $clean_table_name, array( 'blogs', 'site' ) ) ) {
+				$search_command = 'search-replace "'.self::$old_domain.'" "'.self::$new_domain.'" "'.$table.'" --all-tables --precise --report=0';
+			} else {
+				$search_command = 'search-replace "//'.self::$old_domain.'" "//'.self::$new_domain.'" "'.$table.'" --all-tables --precise --report=0';
+			}
+			$options = array(
+				'return'     => 'all',   // Return 'STDOUT'; use 'all' for full object.
+				'launch'     => false,   // Reuse the current process.
+				'exit_error' => true,   // Halt script execution on error.
+			);
+			$ret = WP_CLI::runcommand( $search_command, $options );
+		}
 
 		$file = self::dump_data_from_table( $table, $table_file );
 
@@ -386,7 +416,18 @@ class Backup_Command extends WP_CLI_Command {
 			}
 
 			if ( ! isset( $tables_info[ $internal_key ] ) ) {
-				$files[] = self::write_table_file( $table );
+				$current = $table;
+				$unprefixed_name = $table;
+				if( $prefixed ) {
+					$unprefixed_name = substr( $unprefixed_name, strlen( $wpdb->base_prefix ) );
+				}
+				$temp = self::get_table_name( $unprefixed_name, 'temp', $prefixed );
+
+				$wpdb->query( "CREATE TABLE IF NOT EXISTS {$temp} LIKE {$current}" );
+				$query = "REPLACE INTO {$temp} SELECT * FROM {$current}";
+				$wpdb->query( $query );
+
+				$files[] = self::write_table_file( $temp, $current );
 				continue;
 			}
 
@@ -505,6 +546,7 @@ class Backup_Command extends WP_CLI_Command {
 		foreach ( $tables as $table ) {
 			$wpdb->query( "DROP TABLE IF EXISTS {$table}" );
 		}
+		self::$new_domain = self::$old_domain = false;
 	}
 
 	/**
