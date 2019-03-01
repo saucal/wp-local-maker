@@ -136,6 +136,8 @@ class Backup_Command extends WP_CLI_Command {
 			;
 		}
 
+		self::cleanup(); // early cleanup, to cleanup unfinished exports.
+
 		$replace = WP_CLI\Utils\get_flag_value( $assoc_args, 'new-domain', false );
 		if( $replace ) {
 			self::$new_domain = $replace;
