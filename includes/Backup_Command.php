@@ -302,7 +302,8 @@ class Backup_Command extends WP_CLI_Command {
 		$table_file = self::get_temp_filename( $table_final_name );
 
 		if ( ! self::$doing_deferred && in_array( $clean_table_name, self::global_tables() ) && $is_custom ) {
-			self::$deferred_table_dumps[$clean_table_name] = array($table, $replace_name);
+			$prio = $tables_info[ $clean_table_name ]['prio'];
+			self::$deferred_table_dumps[$prio] = array($table, $replace_name);
 			return $table_file;
 		}
 
@@ -492,12 +493,15 @@ class Backup_Command extends WP_CLI_Command {
 			}
 		}
 
-		while( ! empty( self::$deferred_table_dumps ) ) {
-			self::$doing_deferred = true;
-
-			$data = array_shift( self::$deferred_table_dumps );
-
-			$files[] = call_user_func_array( array(__CLASS__, 'write_table_file'), $data );
+		if( ! empty( self::$deferred_table_dumps ) ) {
+			ksort( self::$deferred_table_dumps, SORT_NUMERIC );
+			while( ! empty( self::$deferred_table_dumps ) ) {
+				self::$doing_deferred = true;
+	
+				$data = array_shift( self::$deferred_table_dumps );
+	
+				$files[] = call_user_func_array( array(__CLASS__, 'write_table_file'), $data );
+			}
 		}
 
 		$files = self::array_unique_last( $files );
