@@ -282,7 +282,7 @@ class Backup_Command extends WP_CLI_Command {
 		global $wpdb;
 
 		$dbname = DB_NAME;
-		$sql = "SHOW FULL TABLES WHERE Table_Type = 'BASE TABLE' AND TABLES_IN_{$dbname} REGEXP '^({$wpdb->base_prefix}(?:([0-9]*)_)?)?{$table}$'";
+		$sql = "SHOW FULL TABLES WHERE Table_Type = 'BASE TABLE' AND `TABLES_IN_{$dbname}` REGEXP '^({$wpdb->base_prefix}(?:([0-9]*)_)?)?{$table}$'";
 		$table_name_full = $wpdb->get_var( $sql );
 
 		if( is_null( $table_name_full ) ) {
