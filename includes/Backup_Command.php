@@ -255,8 +255,42 @@ class Backup_Command extends WP_CLI_Command {
 		return self::$tables_info;
 	}
 
-	public static function get_table_name( $table, $key = 'curr', $prefixed = true ) {
+	public static function get_table_internal_info( $table ) {
 		global $wpdb;
+		$re = '/^' . preg_quote( $wpdb->base_prefix ) . '(?:([0-9]*)_)?/m';
+		preg_match( $re, $table, $matches );
+
+		$internal_key = $table;
+		$blog_id = 1;
+		$prefixed = true;
+		if ( ! empty( $matches ) ) {
+			// Print the entire match result
+			if ( ! isset( $matches[1] ) ) {
+				$blog_id = 1;
+			} else {
+				$blog_id = (int) $matches[1];
+			}
+			$internal_key = substr( $internal_key, strlen( $matches[0] ) );
+		} else {
+			$prefixed = false;
+		}
+
+		return array($internal_key, $blog_id, $prefixed);
+	}
+
+	public static function get_table_name( $table, $key = 'curr' ) {
+		global $wpdb;
+
+		$dbname = DB_NAME;
+		$sql = "SHOW FULL TABLES WHERE Table_Type = 'BASE TABLE' AND TABLES_IN_{$dbname} REGEXP '^({$wpdb->base_prefix}(?:([0-9]*)_)?)?{$table}$'";
+		$table_name_full = $wpdb->get_var( $sql );
+
+		if( is_null( $table_name_full ) ) {
+			$table_name_full = $table;
+		}
+
+		list($internal_key, $blog_id, $prefixed) = self::get_table_internal_info( $table_name_full );
+		$table = $internal_key;
 
 		if ( $prefixed ) {
 			if ( in_array( $table, self::global_tables() ) ) {
@@ -403,31 +437,12 @@ class Backup_Command extends WP_CLI_Command {
 		$global_queue = array();
 
 		foreach ( $tables as $table ) {
-			$re = '/^' . preg_quote( $wpdb->base_prefix ) . '(?:([0-9]*)_)?/m';
-			preg_match( $re, $table, $matches );
 
-			$internal_key = $table;
-			$blog_id = 1;
-			$prefixed = true;
-			if ( ! empty( $matches ) ) {
-				// Print the entire match result
-				if ( ! isset( $matches[1] ) ) {
-					$blog_id = 1;
-				} else {
-					$blog_id = (int) $matches[1];
-				}
-				$internal_key = substr( $internal_key, strlen( $matches[0] ) );
-			} else {
-				$prefixed = false;
-			}
+			list($internal_key, $blog_id, $prefixed) = self::get_table_internal_info( $table );
 
 			if ( ! isset( $tables_info[ $internal_key ] ) ) {
 				$current = $table;
-				$unprefixed_name = $table;
-				if( $prefixed ) {
-					$unprefixed_name = substr( $unprefixed_name, strlen( $wpdb->base_prefix ) );
-				}
-				$temp = self::get_table_name( $unprefixed_name, 'temp', $prefixed );
+				$temp = self::get_table_name( $current, 'temp' );
 
 				$wpdb->query( "CREATE TABLE IF NOT EXISTS {$temp} LIKE {$current}" );
 				$query = "REPLACE INTO {$temp} SELECT * FROM {$current}";
@@ -444,7 +459,7 @@ class Backup_Command extends WP_CLI_Command {
 
 			$object_to_append = array(
 				'currname' => $table,
-				'tempname' => self::get_table_name( $internal_key, 'temp', $prefixed ),
+				'tempname' => self::get_table_name( $internal_key, 'temp' ),
 				'callback' => $tbl_info['callback'],
 			);
 
