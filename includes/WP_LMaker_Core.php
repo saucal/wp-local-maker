@@ -152,7 +152,7 @@ class WP_LMaker_Core {
 		$wpdb->query(
 			"REPLACE INTO {$temp}
 			SELECT u.* FROM {$current} u 
-			INNER JOIN {$curr_usermeta} um ON um.user_id = u.ID AND um.meta_key = 'wp_capabilities'
+			INNER JOIN {$curr_usermeta} um ON um.user_id = u.ID AND um.meta_key = '{$wpdb->prefix}capabilities'
 			WHERE um.meta_value LIKE '%\"administrator\"%'"
 		);
 
