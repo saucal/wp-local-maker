@@ -353,10 +353,16 @@ class Backup_Command extends WP_CLI_Command {
 			$options = array(
 				'return'     => 'all',   // Return 'STDOUT'; use 'all' for full object.
 				'launch'     => false,   // Reuse the current process.
-				'exit_error' => true,   // Halt script execution on error.
+				'exit_error' => false,   // Halt script execution on error.
 			);
 
 			$ret = WP_CLI::runcommand( $search_command, $options );
+
+			if ( $ret->return_code !== 0 ) {
+				echo "ERROR:" . $ret->stderr . "\n";
+			} else {
+				echo $ret->stdout . "\n";
+			}
 		}
 
 		$file = self::dump_data_from_table( $table, $table_file );
