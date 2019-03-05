@@ -355,6 +355,7 @@ class Backup_Command extends WP_CLI_Command {
 				'launch'     => false,   // Reuse the current process.
 				'exit_error' => true,   // Halt script execution on error.
 			);
+
 			$ret = WP_CLI::runcommand( $search_command, $options );
 		}
 
@@ -601,6 +602,8 @@ class Backup_Command extends WP_CLI_Command {
 
 		$count = 0;
 
+		$warnings = array( 200, 500, 1000, 2000 );
+
 		foreach ($files as $name => $file)
 		{
 			if($count == 100) {
@@ -611,12 +614,24 @@ class Backup_Command extends WP_CLI_Command {
 			$filePath = $file->getRealPath();
 			$relativePath = substr($filePath, strlen($rootPath) + 1);
 
-			if( ! $file->isDir() ) {
-				$total_size += $file->getSize();
+			$paths_ignored = apply_filters( "wp_local_maker_zip_ignored_paths", array( 'wp-content/uploads' ) );
+			foreach( $paths_ignored as $this_ignored_path ) {
+				if( strpos( $filePath, $this_ignored_path ) !== false ) {
+					continue 2;
+				}
 			}
 
-			if( strpos( $filePath, 'wp-content/uploads' ) !== false ) {
-				continue;
+			if( ! $file->isDir() ) {
+				$this_size = $file->getSize();
+				$total_size += $this_size;
+				if( $this_size > 2 * MB_IN_BYTES ) {
+					echo "\nWARNING: File too big. " . $filePath . " " . size_format( $file->getSize() ) . ".\n";
+				}
+			}
+
+			if( ! empty( $warnings ) && $total_size > $warnings[0] * MB_IN_BYTES ) {
+				echo "\nWARNING: " . $warnings[0] . "MB in files to be compressed.\n";
+				array_shift( $warnings );
 			}
 
 			if (!$file->isDir()) {
