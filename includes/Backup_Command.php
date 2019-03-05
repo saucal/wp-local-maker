@@ -346,9 +346,9 @@ class Backup_Command extends WP_CLI_Command {
 
 		if( self::$new_domain ) {
 			if( in_array( $clean_table_name, array( 'blogs', 'site' ) ) ) {
-				$search_command = 'search-replace "'.self::$old_domain.'" "'.self::$new_domain.'" '.$table.' --all-tables --precise --report=0';
+				$search_command = 'search-replace '.self::$old_domain.' '.self::$new_domain.' '.$table.' --all-tables --precise --report=0';
 			} else {
-				$search_command = 'search-replace "//'.self::$old_domain.'" "//'.self::$new_domain.'" '.$table.' --all-tables --precise --report=0';
+				$search_command = 'search-replace //'.self::$old_domain.' //'.self::$new_domain.' '.$table.' --all-tables --precise --report=0';
 			}
 			$options = array(
 				'return'     => 'all',   // Return 'STDOUT'; use 'all' for full object.
