@@ -189,7 +189,32 @@ class Backup_Command extends WP_CLI_Command {
 			)
 		);
 
+		$first_pass = self::adjust_structure( $first_pass );
+
 		return $first_pass;
+	}
+
+	public static function adjust_structure( $file ) {
+		$lines = [];
+		$source = fopen( $file, 'r' );
+		$target_name = self::get_temp_filename();
+		$target = fopen( $target_name, 'w' );
+
+		while ( ! feof( $source ) ) {
+			$str = fgets( $source );
+
+			// Clear definer for views
+			$str = preg_replace('/DEFINER=\`.*?\`@\`.*?\`/', '', $str);
+			$str = preg_replace('/SQL SECURITY DEFINER/', '', $str);
+			$str = preg_replace('/\/\*\![0-9]+\s*\*\/\n/', '', $str);
+			fputs( $target, $str );
+		}
+
+		fclose( $source );
+		@unlink( $file );
+		fclose( $target );
+		rename( $target_name, $file );
+		return $file;
 	}
 
 	public static function dump_data_from_table( $table, $this_table_file = null ) {
