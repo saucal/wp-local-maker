@@ -686,8 +686,6 @@ class Backup_Command extends WP_CLI_Command {
 
 		$zip->addEmptyDir('wp-content/uploads');
 
-		echo "\n";
-
 		$source_wp_conf = ABSPATH . "wp-config.php";
 		$target_wp_conf = ABSPATH . "wp-config-wplm-temp.php";
 		$copied = @copy( $source_wp_conf, $target_wp_conf );
@@ -714,6 +712,8 @@ class Backup_Command extends WP_CLI_Command {
 
 		// Zip archive will be created only after closing object
 		$zip->close();
+
+		echo "\n";
 
 		@unlink( $target_wp_conf );
 
