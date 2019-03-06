@@ -16,7 +16,7 @@ class WP_LMaker_WooCommerce_Memberships extends WP_LMaker_Abstract_Addon {
 	public function __construct() {
 		parent::__construct();
 		add_filter( 'wp_local_maker_ignore_straight_post_types', array( $this, 'ignore_straight_post_types' ) );
-		add_action( 'wp_local_maker_orders_after_orders', array( $this, 'process_memberships' ) );
+		add_action( 'wp_local_maker_orders_after_orders', array( $this, 'process_memberships' ), 12 );
 	}
 
 	public function process_memberships( $tables_info ) {

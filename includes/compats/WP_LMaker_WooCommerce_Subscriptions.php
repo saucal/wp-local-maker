@@ -16,7 +16,7 @@ class WP_LMaker_WooCommerce_Subscriptions extends WP_LMaker_Abstract_Addon {
 	function __construct() {
 		parent::__construct();
 		add_filter( 'wp_local_maker_ignore_straight_post_types', array( $this, 'ignore_straight_post_types' ) );
-		add_action( 'wp_local_maker_orders_after_orders', array( $this, 'process_subscriptions' ) );
+		add_action( 'wp_local_maker_orders_after_orders', array( $this, 'process_subscriptions' ), 10 );
 	}
 
 	function process_subscriptions( $tables_info ) {
