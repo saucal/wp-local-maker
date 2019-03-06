@@ -609,82 +609,23 @@ class Backup_Command extends WP_CLI_Command {
 	}
 
 	protected static function maybe_zip_folder( $rootPath, $zip_fn ) {
-		$rootPath = untrailingslashit( $rootPath );
-
-		$plugin_slug = basename($rootPath);
-
-		// Create recursive directory iterator
-		/** @var SplFileInfo[] $files */
-
-		$dir_iterator = new RecursiveDirectoryIterator($rootPath);
-		$dir_iterator_filtered = new WP_LMaker_Dir_Filter( $dir_iterator, array("..", ".git", ".DS_Store", "WPLM-*.zip") );
-		
-		$files = new RecursiveIteratorIterator(
-			$dir_iterator_filtered,
-			RecursiveIteratorIterator::LEAVES_ONLY
-		);
-
-		$total_size = 0;
-
-		// Initialize archive object
-		$zip = new ZipArchive();
-		$zip->open($zip_fn, ZipArchive::CREATE | ZipArchive::OVERWRITE);
-
 		echo "Compressing directory";
 
-		$count = 0;
+		$rootPath = untrailingslashit( $rootPath );
 
-		$warnings = array( 200, 500, 1000, 2000 );
-
-		foreach ($files as $name => $file)
-		{
-			if($count == 100) {
-				$count=0;
-				echo ".";
-			}
-			$count++;
-			$filePath = $file->getRealPath();
-			$relativePath = substr($filePath, strlen($rootPath) + 1);
-
-			$paths_ignored = apply_filters( "wp_local_maker_zip_ignored_paths", array( 'wp-content/uploads' ) );
-			foreach( $paths_ignored as $this_ignored_path ) {
-				if( strpos( $filePath, $this_ignored_path ) !== false ) {
-					continue 2;
-				}
-			}
-
-			if( ! $file->isDir() ) {
-				$this_size = $file->getSize();
-				$total_size += $this_size;
-				if( $this_size > 2 * MB_IN_BYTES ) {
-					echo "\nWARNING: File too big. " . $filePath . " " . size_format( $file->getSize() ) . ".\n";
-				}
-			}
-
-			if( ! empty( $warnings ) && $total_size > $warnings[0] * MB_IN_BYTES ) {
-				echo "\nWARNING: " . $warnings[0] . "MB in files to be compressed.\n";
-				array_shift( $warnings );
-			}
-
-			if (!$file->isDir()) {
-				$path = array(
-					$relativePath,
-					$filePath
-				);
-			} else {
-				$path = array(
-					$relativePath
-				);
-			}
-
-			if(count($path) == 2) {
-				$zip->addFile($path[1], $path[0]);
-			} else {
-				$zip->addEmptyDir($path[0]);
-			}
-		}
+		$zip = WP_LMaker_Dir_Crawler::process( array( 
+			'path' => $rootPath,
+			'ignored_paths' => apply_filters( "wp_local_maker_zip_ignored_paths", array( 'wp-content/uploads' ) ),
+		), $zip_fn );
 
 		$zip->addEmptyDir('wp-content/uploads');
+
+		foreach( apply_filters( "wp_local_maker_extra_compressed_paths", array() ) as $relative_path_to_compress ) {
+			WP_LMaker_Dir_Crawler::process( array( 
+				'path' => $rootPath . '/' . $relative_path_to_compress,
+				'rootPath' => $rootPath,
+			), $zip );
+		}
 
 		$source_wp_conf = ABSPATH . "wp-config.php";
 		$target_wp_conf = ABSPATH . "wp-config-wplm-temp.php";
@@ -714,6 +655,8 @@ class Backup_Command extends WP_CLI_Command {
 		$zip->close();
 
 		echo "\n";
+
+		WP_LMaker_Dir_Crawler::reset();
 
 		@unlink( $target_wp_conf );
 

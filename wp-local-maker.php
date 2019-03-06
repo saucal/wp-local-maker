@@ -14,6 +14,7 @@ if ( ! class_exists( 'WP_CLI' ) ) {
 
 
 require_once __DIR__ . '/includes/Backup_Command.php';
+require_once __DIR__ . '/includes/WP_LMaker_Dir_Crawler.php';
 require_once __DIR__ . '/includes/WP_LMaker_Dir_Filter.php';
 require_once __DIR__ . '/includes/WP_LMaker_Core.php';
 require_once __DIR__ . '/includes/WP_LMaker_Init_Compats.php';
