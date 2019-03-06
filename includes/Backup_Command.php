@@ -358,9 +358,10 @@ class Backup_Command extends WP_CLI_Command {
 
 			$ret = WP_CLI::runcommand( $search_command, $options );
 
-			if ( $ret->return_code !== 0 ) {
+			if ( $ret->stderr ) {
 				echo "ERROR:" . $ret->stderr . "\n";
-			} else {
+			}
+			if ( $ret->stdout ) {
 				echo $ret->stdout . "\n";
 			}
 		}
