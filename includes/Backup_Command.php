@@ -697,7 +697,7 @@ class Backup_Command extends WP_CLI_Command {
 			$home_url = is_multisite() ? network_home_url() : home_url();
 			$home_url = parse_url($home_url);
 			$home_url = $home_url['host'] . ( isset( $home_url['port'] ) ? $home_url['port'] : '' );
-			$config_transformer->update( 'constant', 'WPLM_OLD_HOME', $home_url, array( 'anchor' => "# That's It. Pencils down" ) );
+			$config_transformer->update( 'constant', 'WPLM_OLD_HOME', $home_url, array( 'anchor' => "<?php", 'placement' => 'after' ) );
 			$zip->addFile( $target_wp_conf, "wp-config.php" );
 		}
 
