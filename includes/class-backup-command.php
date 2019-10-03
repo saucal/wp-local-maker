@@ -638,15 +638,17 @@ class Backup_Command extends WP_CLI_Command {
 		$copied         = @copy( $source_wp_conf, $target_wp_conf );
 		if ( $copied ) {
 			$config_transformer = new WPConfigTransformer( $target_wp_conf );
-			$config_transformer->update(
-				'constant',
-				'DOMAIN_CURRENT_SITE',
-				self::$new_domain,
-				array(
-					'add'       => false,
-					'normalize' => true,
-				)
-			);
+			if ( self::$new_domain ) {
+				$config_transformer->update(
+					'constant',
+					'DOMAIN_CURRENT_SITE',
+					self::$new_domain,
+					array(
+						'add'       => false,
+						'normalize' => true,
+					)
+				);
+			}
 			$config_transformer->remove( 'constant', 'WP_SITEURL' );
 			$config_transformer->remove( 'constant', 'WP_HOME' );
 			$home_url = is_multisite() ? network_home_url() : home_url();
