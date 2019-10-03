@@ -20,6 +20,16 @@ class WP_LMaker_Dir_Crawler {
 		$path      = untrailingslashit( $options['path'] );
 		$root_path = ! empty( $options['root_path'] ) ? untrailingslashit( $options['root_path'] ) : $path;
 
+		if ( ! is_a( $zip, 'ZipArchive' ) ) {
+			// Initialize archive object
+			$zip_fn = $zip;
+			$zip    = new ZipArchive();
+			$zip->open( $zip_fn, ZipArchive::CREATE | ZipArchive::OVERWRITE );
+		}
+
+		if ( ! file_exists( $path ) ) {
+			return $zip;
+		}
 		// Create recursive directory iterator
 		/** @var SplFileInfo[] $files */
 
@@ -32,13 +42,6 @@ class WP_LMaker_Dir_Crawler {
 		);
 
 		self::$total_size = 0;
-
-		if ( ! is_a( $zip, 'ZipArchive' ) ) {
-			// Initialize archive object
-			$zip_fn = $zip;
-			$zip    = new ZipArchive();
-			$zip->open( $zip_fn, ZipArchive::CREATE | ZipArchive::OVERWRITE );
-		}
 
 		$warnings = array( 200, 500, 1000, 2000 );
 
