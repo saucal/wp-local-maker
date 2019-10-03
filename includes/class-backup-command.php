@@ -685,63 +685,6 @@ class Backup_Command extends WP_CLI_Command {
 		return $zip_fn;
 	}
 
-	/**
-	 * Imports a database from a file or from STDIN.
-	 *
-	 * Runs SQL queries using `DB_HOST`, `DB_NAME`, `DB_USER` and
-	 * `DB_PASSWORD` database credentials specified in wp-config.php. This
-	 * does not create database by itself and only performs whatever tasks are
-	 * defined in the SQL.
-	 *
-	 * ## OPTIONS
-	 *
-	 * [<file>]
-	 * : The name of the SQL file to import. If '-', then reads from STDIN. If omitted, it will look for '{dbname}.sql'.
-	 *
-	 * [--dbuser=<value>]
-	 * : Username to pass to mysql. Defaults to DB_USER.
-	 *
-	 * [--dbpass=<value>]
-	 * : Password to pass to mysql. Defaults to DB_PASSWORD.
-	 *
-	 * [--skip-optimization]
-	 * : When using an SQL file, do not include speed optimization such as disabling auto-commit and key checks.
-	 *
-	 * ## EXAMPLES
-	 *
-	 *     # Import MySQL from a file.
-	 *     $ wp db import wordpress_dbase.sql
-	 *     Success: Imported from 'wordpress_dbase.sql'.
-	 */
-	public function import( $args, $assoc_args ) {
-		if ( ! empty( $args[0] ) ) {
-			$result_file = $args[0];
-		} else {
-			$result_file = sprintf( '%s.sql', DB_NAME );
-		}
-
-		$mysql_args = array(
-			'database' => DB_NAME,
-		);
-		$mysql_args = array_merge( self::get_dbuser_dbpass_args( $assoc_args ), $mysql_args );
-
-		if ( '-' !== $result_file ) {
-			if ( ! is_readable( $result_file ) ) {
-				WP_CLI::error( sprintf( 'Import file missing or not readable: %s', $result_file ) );
-			}
-
-			$query = \WP_CLI\Utils\get_flag_value( $assoc_args, 'skip-optimization' )
-				? 'SOURCE %s;'
-				: 'SET autocommit = 0; SET unique_checks = 0; SET foreign_key_checks = 0; SOURCE %s; COMMIT;';
-
-			$mysql_args['execute'] = sprintf( $query, $result_file );
-		}
-
-		self::run( '/usr/bin/env mysql --no-defaults --no-auto-rehash', $mysql_args );
-
-		WP_CLI::success( sprintf( "Imported from '%s'.", $result_file ) );
-	}
-
 	private static function run( $cmd, $assoc_args = array(), $descriptors = null ) {
 		$required = array(
 			'host' => DB_HOST,
@@ -766,23 +709,6 @@ class Backup_Command extends WP_CLI_Command {
 
 		$final_args = array_merge( $assoc_args, $required );
 		Utils\run_mysql_command( $cmd, $final_args, $descriptors );
-	}
-
-	/**
-	 * Helper to pluck 'dbuser' and 'dbpass' from associative args array.
-	 *
-	 * @param array $assoc_args Associative args array.
-	 * @return array Array with `dbuser' and 'dbpass' set if in passed-in associative args array.
-	 */
-	private static function get_dbuser_dbpass_args( $assoc_args ) {
-		$mysql_args = array();
-		if ( null !== ( $dbuser = \WP_CLI\Utils\get_flag_value( $assoc_args, 'dbuser' ) ) ) {
-			$mysql_args['dbuser'] = $dbuser;
-		}
-		if ( null !== ( $dbpass = \WP_CLI\Utils\get_flag_value( $assoc_args, 'dbpass' ) ) ) {
-			$mysql_args['dbpass'] = $dbpass;
-		}
-		return $mysql_args;
 	}
 
 	/**
