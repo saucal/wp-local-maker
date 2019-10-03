@@ -249,8 +249,6 @@ class Backup_Command extends WP_CLI_Command {
 			)
 		);
 
-		WP_CLI::line( sprintf( 'Exported %d rows from %s. Export size: %s', $wpdb->get_var( "SELECT COUNT(*) FROM {$table}" ), $table, size_format( filesize( $this_table_file ) ) ) );
-
 		return $this_table_file;
 	}
 
@@ -401,6 +399,8 @@ class Backup_Command extends WP_CLI_Command {
 		if ( $replace_name ) {
 			$file = self::adjust_file( $file, "`{$table}`", "`{$replace_name}`" );
 		}
+
+		WP_CLI::line( sprintf( 'Exported %d rows from %s. Export size: %s', $wpdb->get_var( "SELECT COUNT(*) FROM {$table}" ), $replace_name ? $replace_name : $table, size_format( filesize( $file ) ) ) );
 
 		return $file;
 	}
