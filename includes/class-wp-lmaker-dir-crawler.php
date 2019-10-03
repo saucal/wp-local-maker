@@ -38,7 +38,7 @@ class WP_LMaker_Dir_Crawler {
 
 		$files = new RecursiveIteratorIterator(
 			$dir_iterator_filtered,
-			RecursiveIteratorIterator::LEAVES_ONLY
+			RecursiveIteratorIterator::LEAVES_ONLY && RecursiveIteratorIterator::SELF_FIRST
 		);
 
 		self::$total_size = 0;
