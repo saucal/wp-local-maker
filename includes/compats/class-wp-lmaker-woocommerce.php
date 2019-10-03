@@ -160,7 +160,7 @@ class WP_LMaker_WooCommerce extends WP_LMaker_Abstract_Addon {
 		);
 	}
 
-	function excluded_tables( $tables ) {
+	public function excluded_tables( $tables ) {
 		global $wpdb;
 		$tables[] = 'wc_download_log';
 		$tables[] = 'woocommerce_sessions';

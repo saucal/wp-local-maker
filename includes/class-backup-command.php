@@ -5,7 +5,6 @@
  * Date: 04/02/2019
  * Time: 18:36
  */
-
 use WP_CLI\Formatter;
 use WP_CLI\Utils;
 
@@ -131,7 +130,7 @@ class Backup_Command extends WP_CLI_Command {
 		if ( ! empty( $args[0] ) ) {
 			$result_file = $args[0];
 		} else {
-			$hash        = substr( md5( mt_rand() ), 0, 7 );
+			$hash        = substr( md5( wp_rand( PHP_INT_MIN, PHP_INT_MAX ) ), 0, 7 );
 			$result_file = sprintf( 'WPLM-%s-%s-%s.zip', DB_NAME, date( 'Y-m-d' ), $hash );
 		}
 
@@ -141,7 +140,7 @@ class Backup_Command extends WP_CLI_Command {
 		if ( $replace ) {
 			self::$new_domain = $replace;
 			$old_domain       = network_site_url();
-			$old_domain       = parse_url( $old_domain );
+			$old_domain       = wp_parse_url( $old_domain );
 			self::$old_domain = $old_domain['host'];
 		}
 
@@ -160,14 +159,16 @@ class Backup_Command extends WP_CLI_Command {
 	}
 
 	protected static function get_db_file_path() {
-		return WP_CONTENT_DIR . '/database.sql';
+		$upload_dir = wp_get_upload_dir();
+		$path       = untrailingslashit( $upload_dir['basedir'] );
+		return $path . '/database.sql';
 	}
 
 	protected static function get_temp_filename( $filename = null ) {
 		if ( $filename ) {
-			return trailingslashit( sys_get_temp_dir() ) . $filename;
+			return trailingslashit( get_temp_dir() ) . $filename;
 		} else {
-			return tempnam( sys_get_temp_dir(), 'backup_export' );
+			return wp_tempnam( 'backup_export' );
 		}
 	}
 
@@ -281,7 +282,7 @@ class Backup_Command extends WP_CLI_Command {
 
 	public static function get_table_internal_info( $table ) {
 		global $wpdb;
-		$re = '/^' . preg_quote( $wpdb->base_prefix ) . '(?:([0-9]*)_)?/m';
+		$re = '/^' . preg_quote( $wpdb->base_prefix, '/' ) . '(?:([0-9]*)_)?/m';
 		preg_match( $re, $table, $matches );
 
 		$internal_key = $table;
@@ -317,14 +318,14 @@ class Backup_Command extends WP_CLI_Command {
 		$table                                   = $internal_key;
 
 		if ( $prefixed ) {
-			if ( in_array( $table, self::global_tables() ) ) {
+			if ( in_array( $table, self::global_tables(), true ) ) {
 				$table = $wpdb->base_prefix . $table;
 			} else {
 				$table = $wpdb->prefix . $table;
 			}
 		}
 
-		if ( $key == 'temp' ) {
+		if ( 'temp' === $key ) {
 			return '_WPLM_' . $table . '_' . hash_hmac( 'crc32', $table, '123456' );
 		} else {
 			return $table;
@@ -359,7 +360,7 @@ class Backup_Command extends WP_CLI_Command {
 
 		$table_file = self::get_temp_filename( $table_final_name );
 
-		if ( ! self::$doing_deferred && in_array( $clean_table_name, self::global_tables() ) && $is_custom ) {
+		if ( ! self::$doing_deferred && in_array( $clean_table_name, self::global_tables(), true ) && $is_custom ) {
 			$prio                                = $tables_info[ $clean_table_name ]['prio'];
 			self::$deferred_table_dumps[ $prio ] = array( $table, $replace_name );
 			return $table_file;
@@ -369,7 +370,7 @@ class Backup_Command extends WP_CLI_Command {
 		do_action( 'wp_local_maker_before_dump', $table, $clean_table_name );
 
 		if ( self::$new_domain ) {
-			if ( in_array( $clean_table_name, array( 'blogs', 'site' ) ) ) {
+			if ( in_array( $clean_table_name, array( 'blogs', 'site' ), true ) ) {
 				$search_command = 'search-replace ' . self::$old_domain . ' ' . self::$new_domain . ' ' . $table . ' --all-tables --precise --report=0';
 			} else {
 				$search_command = 'search-replace //' . self::$old_domain . ' //' . self::$new_domain . ' ' . $table . ' --all-tables --precise --report=0';
@@ -383,10 +384,10 @@ class Backup_Command extends WP_CLI_Command {
 			$ret = WP_CLI::runcommand( $search_command, $options );
 
 			if ( $ret->stderr ) {
-				echo 'ERROR:' . $ret->stderr . "\n";
+				echo esc_html( 'ERROR:' . $ret->stderr . "\n" );
 			}
 			if ( $ret->stdout ) {
-				echo $ret->stdout . "\n";
+				echo esc_html( $ret->stdout . "\n" );
 			}
 		}
 
@@ -495,7 +496,7 @@ class Backup_Command extends WP_CLI_Command {
 				'callback' => $tbl_info['callback'],
 			);
 
-			if ( in_array( $internal_key, $global_tables ) ) {
+			if ( in_array( $internal_key, $global_tables, true ) ) {
 				$global_queue[ $tbl_info['prio'] ] = $object_to_append;
 			} else {
 				if ( ! isset( $process_queue[ $blog_id ] ) ) {
@@ -519,7 +520,7 @@ class Backup_Command extends WP_CLI_Command {
 		foreach ( $process_queue as $blog_id => $blog_queue ) {
 			ksort( $blog_queue, SORT_NUMERIC );
 			$switched = false;
-			if ( is_multisite() && get_current_blog_id() != $blog_id ) {
+			if ( is_multisite() && get_current_blog_id() !== $blog_id ) {
 				switch_to_blog( $blog_id );
 				$switched = true;
 			}
@@ -603,18 +604,18 @@ class Backup_Command extends WP_CLI_Command {
 		foreach ( $tables as $table ) {
 			$wpdb->query( "DROP TABLE IF EXISTS {$table}" );
 		}
-		self::$new_domain = self::$old_domain = false;
+		self::$new_domain = self::$old_domain = false; // phpcs:ignore Squiz.PHP.DisallowMultipleAssignments
 		@unlink( self::get_db_file_path() );
 	}
 
-	protected static function maybe_zip_folder( $rootPath, $zip_fn ) {
+	protected static function maybe_zip_folder( $root_path, $zip_fn ) {
 		echo 'Compressing directory';
 
-		$rootPath = untrailingslashit( $rootPath );
+		$root_path = untrailingslashit( $root_path );
 
 		$zip = WP_LMaker_Dir_Crawler::process(
 			array(
-				'path'          => $rootPath,
+				'path'          => $root_path,
 				'ignored_paths' => apply_filters( 'wp_local_maker_zip_ignored_paths', array( 'wp-content/uploads' ) ),
 			),
 			$zip_fn
@@ -625,15 +626,15 @@ class Backup_Command extends WP_CLI_Command {
 		foreach ( apply_filters( 'wp_local_maker_extra_compressed_paths', array() ) as $relative_path_to_compress ) {
 			WP_LMaker_Dir_Crawler::process(
 				array(
-					'path'     => $rootPath . '/' . $relative_path_to_compress,
-					'rootPath' => $rootPath,
+					'path'      => $root_path . '/' . $relative_path_to_compress,
+					'root_path' => $root_path,
 				),
 				$zip
 			);
 		}
 
 		$source_wp_conf = ABSPATH . 'wp-config.php';
-		$target_wp_conf = ABSPATH . 'wp-config-wplm-temp.php';
+		$target_wp_conf = self::get_temp_filename( 'wp-config-wplm-temp' );
 		$copied         = @copy( $source_wp_conf, $target_wp_conf );
 		if ( $copied ) {
 			$config_transformer = new WPConfigTransformer( $target_wp_conf );
@@ -649,7 +650,7 @@ class Backup_Command extends WP_CLI_Command {
 			$config_transformer->remove( 'constant', 'WP_SITEURL' );
 			$config_transformer->remove( 'constant', 'WP_HOME' );
 			$home_url = is_multisite() ? network_home_url() : home_url();
-			$home_url = parse_url( $home_url );
+			$home_url = wp_parse_url( $home_url );
 			$home_url = $home_url['host'] . ( isset( $home_url['port'] ) ? $home_url['port'] : '' );
 
 			$anchors = array( "/* That's all, stop editing!", "# That's It. Pencils down" );
@@ -658,7 +659,7 @@ class Backup_Command extends WP_CLI_Command {
 					$config_transformer->update( 'constant', 'WPLM_OLD_HOME', $home_url, array( 'anchor' => $anchor ) );
 					break;
 				} catch ( Exception $e ) {
-
+					unset( $e );
 				}
 			}
 			$zip->addFile( $target_wp_conf, 'wp-config.php' );
@@ -692,8 +693,7 @@ class Backup_Command extends WP_CLI_Command {
 			'pass' => DB_PASSWORD,
 		);
 
-		if ( ! isset( $assoc_args['default-character-set'] )
-			 && defined( 'DB_CHARSET' ) && constant( 'DB_CHARSET' ) ) {
+		if ( ! isset( $assoc_args['default-character-set'] ) && defined( 'DB_CHARSET' ) && constant( 'DB_CHARSET' ) ) {
 			$required['default-character-set'] = constant( 'DB_CHARSET' );
 		}
 
@@ -718,12 +718,14 @@ class Backup_Command extends WP_CLI_Command {
 	 * @return array A 3 element array consisting of an array of primary key column names, an array of text column names, and an array containing all column names.
 	 */
 	private static function get_columns( $table ) {
+		// phpcs:disable WordPress.NamingConventions.ValidVariableName
 		global $wpdb;
 
 		$table_sql       = self::esc_sql_ident( $table );
-		$primary_keys    = $text_columns = $all_columns = array();
+		$primary_keys    = $text_columns = $all_columns = array(); // phpcs:ignore Squiz.PHP.DisallowMultipleAssignments
 		$suppress_errors = $wpdb->suppress_errors();
-		if ( ( $results = $wpdb->get_results( "DESCRIBE $table_sql" ) ) ) {
+		$results         = $wpdb->get_results( "DESCRIBE $table_sql" );
+		if ( $results ) {
 			foreach ( $results as $col ) {
 				if ( 'PRI' === $col->Key ) {
 					$primary_keys[] = $col->Field;
@@ -736,6 +738,7 @@ class Backup_Command extends WP_CLI_Command {
 		}
 		$wpdb->suppress_errors( $suppress_errors );
 		return array( $primary_keys, $text_columns, $all_columns );
+		// phpcs:enable
 	}
 
 	/**

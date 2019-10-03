@@ -13,14 +13,14 @@
  */
 class WP_LMaker_WooCommerce_Subscriptions extends WP_LMaker_Abstract_Addon {
 
-	function __construct() {
+	public function __construct() {
 		parent::__construct();
 		add_filter( 'wp_local_maker_ignore_straight_post_types', array( $this, 'ignore_straight_post_types' ) );
 		add_action( 'wp_local_maker_orders_after_orders', array( $this, 'process_subscriptions' ), 10 );
 		add_action( 'wp_local_maker_memberships_after_memberships', array( $this, 'process_related_subscriptions' ) );
 	}
 
-	function process_subscriptions( $tables_info ) {
+	public function process_subscriptions( $tables_info ) {
 		global $wpdb;
 		$current = $tables_info['posts']['currname'];
 		$temp    = $tables_info['posts']['tempname'];
@@ -63,7 +63,7 @@ class WP_LMaker_WooCommerce_Subscriptions extends WP_LMaker_Abstract_Addon {
 		);
 	}
 
-	function ignore_straight_post_types( $types ) {
+	public function ignore_straight_post_types( $types ) {
 		$types[] = 'shop_subscription';
 		return $types;
 	}

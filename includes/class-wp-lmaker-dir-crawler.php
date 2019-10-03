@@ -5,20 +5,20 @@ class WP_LMaker_Dir_Crawler {
 	private static $count      = 0;
 
 	public static function reset() {
-		self::$total_size = self::$count = 0;
+		self::$total_size = self::$count = 0; // phpcs:ignore Squiz.PHP.DisallowMultipleAssignments
 	}
 
 	public static function process( $options, $zip ) {
-		$options  = wp_parse_args(
+		$options   = wp_parse_args(
 			$options,
 			array(
 				'path'          => null,
-				'rootPath'      => null,
+				'root_path'     => null,
 				'ignored_paths' => array(),
 			)
 		);
-		$path     = untrailingslashit( $options['path'] );
-		$rootPath = ! empty( $options['rootPath'] ) ? untrailingslashit( $options['rootPath'] ) : $path;
+		$path      = untrailingslashit( $options['path'] );
+		$root_path = ! empty( $options['root_path'] ) ? untrailingslashit( $options['root_path'] ) : $path;
 
 		// Create recursive directory iterator
 		/** @var SplFileInfo[] $files */
@@ -43,17 +43,17 @@ class WP_LMaker_Dir_Crawler {
 		$warnings = array( 200, 500, 1000, 2000 );
 
 		foreach ( $files as $name => $file ) {
-			if ( self::$count == 100 ) {
+			if ( 100 === self::$count ) {
 				self::$count = 0;
 				echo '.';
 			}
 			self::$count++;
-			$filePath     = $file->getRealPath();
-			$relativePath = substr( $filePath, strlen( $rootPath ) + 1 );
+			$file_path     = $file->getRealPath();
+			$relative_path = substr( $file_path, strlen( $root_path ) + 1 );
 
 			$paths_ignored = $options['ignored_paths'];
 			foreach ( $paths_ignored as $this_ignored_path ) {
-				if ( strpos( $filePath, $this_ignored_path ) !== false ) {
+				if ( strpos( $file_path, $this_ignored_path ) !== false ) {
 					continue 2;
 				}
 			}
@@ -62,23 +62,23 @@ class WP_LMaker_Dir_Crawler {
 				$this_size   = $file->getSize();
 				$total_size += $this_size;
 				if ( $this_size > 2 * MB_IN_BYTES ) {
-					echo "\nWARNING: File too big. " . $filePath . ' ' . size_format( $file->getSize() ) . ".\n";
+					echo esc_html( "\nWARNING: File too big. " . $file_path . ' ' . size_format( $file->getSize() ) . ".\n" );
 				}
 			}
 
 			if ( ! empty( $warnings ) && $total_size > $warnings[0] * MB_IN_BYTES ) {
-				echo "\nWARNING: " . $warnings[0] . "MB in files to be compressed.\n";
+				echo esc_html( "\nWARNING: " . $warnings[0] . "MB in files to be compressed.\n" );
 				array_shift( $warnings );
 			}
 
 			if ( ! $file->isDir() ) {
 				$path = array(
-					$relativePath,
-					$filePath,
+					$relative_path,
+					$file_path,
 				);
 			} else {
 				$path = array(
-					$relativePath,
+					$relative_path,
 				);
 			}
 
