@@ -149,9 +149,14 @@ class Backup_Command extends WP_CLI_Command {
 
 		$files = array_merge( $files, self::dump_data() );
 
-		self::join_files( $files );
+		$db_file = self::join_files( $files );
 
-		self::maybe_zip_folder( ABSPATH, $result_file );
+		$db_only = WP_CLI\Utils\get_flag_value( $assoc_args, 'db-only', false );
+		if ( $db_only ) {
+			self::maybe_zip_file( $db_file, $result_file );
+		} else {
+			self::maybe_zip_folder( ABSPATH, $result_file );
+		}
 
 		self::cleanup();
 
@@ -596,6 +601,7 @@ class Backup_Command extends WP_CLI_Command {
 		}
 
 		fclose( $target );
+		return $result_file;
 	}
 
 	protected static function cleanup() {
@@ -606,6 +612,15 @@ class Backup_Command extends WP_CLI_Command {
 		}
 		self::$new_domain = self::$old_domain = false; // phpcs:ignore Squiz.PHP.DisallowMultipleAssignments
 		@unlink( self::get_db_file_path() );
+	}
+
+	protected static function maybe_zip_file( $file, $zip_fn ) {
+		// Initialize archive object
+		$zip = new ZipArchive();
+		$zip->open( $zip_fn, ZipArchive::CREATE | ZipArchive::OVERWRITE );
+		$zip->addFile( $file, basename( $file ) );
+		$zip->close();
+		return $zip_fn;
 	}
 
 	protected static function maybe_zip_folder( $root_path, $zip_fn ) {
