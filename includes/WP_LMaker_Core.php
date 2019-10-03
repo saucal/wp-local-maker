@@ -22,21 +22,21 @@ class WP_LMaker_Core {
 
 	public function enqueue_process_posts( $tables ) {
 		global $wpdb;
-		$tables['posts'] = array( $this, 'process_posts' );
+		$tables['posts']    = array( $this, 'process_posts' );
 		$tables['postmeta'] = array( $this, 'process_postmeta' );
 		return $tables;
 	}
 
 	public function enqueue_process_comments( $tables ) {
 		global $wpdb;
-		$tables['comments'] = array( $this, 'process_comments' );
+		$tables['comments']    = array( $this, 'process_comments' );
 		$tables['commentmeta'] = array( $this, 'process_commentmeta' );
 		return $tables;
 	}
 
 	public function enqueue_process_users( $tables ) {
 		global $wpdb;
-		$tables['users'] = array( $this, 'process_users' );
+		$tables['users']    = array( $this, 'process_users' );
 		$tables['usermeta'] = array( $this, 'process_usermeta' );
 		return $tables;
 	}
@@ -44,9 +44,9 @@ class WP_LMaker_Core {
 	public function enqueue_process_terms( $tables ) {
 		global $wpdb;
 		$tables['term_relationships'] = array( $this, 'process_term_relationships' );
-		$tables['term_taxonomy'] = array( $this, 'process_term_taxonomy' );
-		$tables['terms'] = array( $this, 'process_terms' );
-		$tables['termmeta'] = array( $this, 'process_termmeta' );
+		$tables['term_taxonomy']      = array( $this, 'process_term_taxonomy' );
+		$tables['terms']              = array( $this, 'process_terms' );
+		$tables['termmeta']           = array( $this, 'process_termmeta' );
 		return $tables;
 	}
 
@@ -59,8 +59,8 @@ class WP_LMaker_Core {
 	public function process_posts() {
 		global $wpdb;
 		$tables_info = Backup_Command::get_tables_names();
-		$current = $tables_info['posts']['currname'];
-		$temp = $tables_info['posts']['tempname'];
+		$current     = $tables_info['posts']['currname'];
+		$temp        = $tables_info['posts']['tempname'];
 
 		$wpdb->query( "CREATE TABLE IF NOT EXISTS {$temp} LIKE {$current}" );
 
@@ -141,9 +141,9 @@ class WP_LMaker_Core {
 
 	public function process_users() {
 		global $wpdb;
-		$tables_info = Backup_Command::get_tables_names();
-		$current = $tables_info['users']['currname'];
-		$temp = $tables_info['users']['tempname'];
+		$tables_info   = Backup_Command::get_tables_names();
+		$current       = $tables_info['users']['currname'];
+		$temp          = $tables_info['users']['tempname'];
 		$curr_usermeta = $tables_info['usermeta']['currname'];
 
 		$wpdb->query( "CREATE TABLE IF NOT EXISTS {$temp} LIKE {$current}" );
@@ -194,8 +194,8 @@ class WP_LMaker_Core {
 	public function process_term_relationships() {
 		global $wpdb;
 		$tables_info = Backup_Command::get_tables_names();
-		$current = $tables_info['term_relationships']['currname'];
-		$temp = $tables_info['term_relationships']['tempname'];
+		$current     = $tables_info['term_relationships']['currname'];
+		$temp        = $tables_info['term_relationships']['tempname'];
 
 		$wpdb->query( "CREATE TABLE IF NOT EXISTS {$temp} LIKE {$current}" );
 
@@ -244,8 +244,8 @@ class WP_LMaker_Core {
 	public function process_options() {
 		global $wpdb;
 		$tables_info = Backup_Command::get_tables_names();
-		$current = $tables_info['options']['currname'];
-		$temp = $tables_info['options']['tempname'];
+		$current     = $tables_info['options']['currname'];
+		$temp        = $tables_info['options']['tempname'];
 
 		$wpdb->query( "CREATE TABLE IF NOT EXISTS {$temp} LIKE {$current}" );
 

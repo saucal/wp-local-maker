@@ -23,7 +23,7 @@ class WP_LMaker_WooCommerce_Subscriptions extends WP_LMaker_Abstract_Addon {
 	function process_subscriptions( $tables_info ) {
 		global $wpdb;
 		$current = $tables_info['posts']['currname'];
-		$temp = $tables_info['posts']['tempname'];
+		$temp    = $tables_info['posts']['tempname'];
 		$curr_pm = $tables_info['postmeta']['currname'];
 
 		// Handle subscriptions
@@ -50,7 +50,7 @@ class WP_LMaker_WooCommerce_Subscriptions extends WP_LMaker_Abstract_Addon {
 	public function process_related_subscriptions( $tables_info ) {
 		global $wpdb;
 		$current = $tables_info['posts']['currname'];
-		$temp = $tables_info['posts']['tempname'];
+		$temp    = $tables_info['posts']['tempname'];
 		$curr_pm = $tables_info['postmeta']['currname'];
 
 		// Handle membership related subscriptions

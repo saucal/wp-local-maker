@@ -131,29 +131,28 @@ class Backup_Command extends WP_CLI_Command {
 		if ( ! empty( $args[0] ) ) {
 			$result_file = $args[0];
 		} else {
-			$hash = substr( md5( mt_rand() ), 0, 7 );
+			$hash        = substr( md5( mt_rand() ), 0, 7 );
 			$result_file = sprintf( 'WPLM-%s-%s-%s.zip', DB_NAME, date( 'Y-m-d' ), $hash );
-			;
 		}
 
 		self::cleanup(); // early cleanup, to cleanup unfinished exports.
 
 		$replace = WP_CLI\Utils\get_flag_value( $assoc_args, 'new-domain', false );
-		if( $replace ) {
+		if ( $replace ) {
 			self::$new_domain = $replace;
-			$old_domain = network_site_url();
-			$old_domain = parse_url( $old_domain );
+			$old_domain       = network_site_url();
+			$old_domain       = parse_url( $old_domain );
 			self::$old_domain = $old_domain['host'];
 		}
 
-		$files = array();
+		$files   = array();
 		$files[] = self::dump_structure();
 
 		$files = array_merge( $files, self::dump_data() );
 
 		self::join_files( $files );
 
-		self::maybe_zip_folder( ABSPATH, $result_file ); 
+		self::maybe_zip_folder( ABSPATH, $result_file );
 
 		self::cleanup();
 
@@ -161,7 +160,7 @@ class Backup_Command extends WP_CLI_Command {
 	}
 
 	protected static function get_db_file_path() {
-		return WP_CONTENT_DIR . "/database.sql";
+		return WP_CONTENT_DIR . '/database.sql';
 	}
 
 	protected static function get_temp_filename( $filename = null ) {
@@ -173,7 +172,7 @@ class Backup_Command extends WP_CLI_Command {
 	}
 
 	public static function dump_structure() {
-		$command = '/usr/bin/env mysqldump --no-defaults %s --single-transaction --quick';
+		$command          = '/usr/bin/env mysqldump --no-defaults %s --single-transaction --quick';
 		$command_esc_args = array( DB_NAME );
 
 		$command .= ' --no-data';
@@ -195,18 +194,18 @@ class Backup_Command extends WP_CLI_Command {
 	}
 
 	public static function adjust_structure( $file ) {
-		$lines = [];
-		$source = fopen( $file, 'r' );
+		$lines       = [];
+		$source      = fopen( $file, 'r' );
 		$target_name = self::get_temp_filename();
-		$target = fopen( $target_name, 'w' );
+		$target      = fopen( $target_name, 'w' );
 
 		while ( ! feof( $source ) ) {
 			$str = fgets( $source );
 
 			// Clear definer for views
-			$str = preg_replace('/DEFINER=\`.*?\`@\`.*?\`/', '', $str);
-			$str = preg_replace('/SQL SECURITY DEFINER/', '', $str);
-			$str = preg_replace('/\/\*\![0-9]+\s*\*\/\n/', '', $str);
+			$str = preg_replace( '/DEFINER=\`.*?\`@\`.*?\`/', '', $str );
+			$str = preg_replace( '/SQL SECURITY DEFINER/', '', $str );
+			$str = preg_replace( '/\/\*\![0-9]+\s*\*\/\n/', '', $str );
 			fputs( $target, $str );
 		}
 
@@ -218,22 +217,22 @@ class Backup_Command extends WP_CLI_Command {
 	}
 
 	public static function dump_data_from_table( $table, $this_table_file = null ) {
-		$command = '/usr/bin/env mysqldump --no-defaults %s --single-transaction --quick';
+		$command          = '/usr/bin/env mysqldump --no-defaults %s --single-transaction --quick';
 		$command_esc_args = array( DB_NAME );
 
 		$command .= ' --no-create-info';
 
-		$command .= ' --tables';
-		$command .= ' %s';
+		$command           .= ' --tables';
+		$command           .= ' %s';
 		$command_esc_args[] = $table;
 
 		$escaped_command = call_user_func_array( '\WP_CLI\Utils\esc_cmd', array_merge( array( $command ), $command_esc_args ) );
 
-		if( is_null( $this_table_file ) ) {
+		if ( is_null( $this_table_file ) ) {
 			$this_table_file = self::get_temp_filename();
 		}
 
-		@unlink( $this_table_file	);
+		@unlink( $this_table_file );
 
 		global $wpdb;
 
@@ -261,7 +260,7 @@ class Backup_Command extends WP_CLI_Command {
 		foreach ( $tables_to_custom_process as $table => $cb ) {
 			$key++;
 			$tables_to_custom_process[ $table ] = array(
-				'prio' => $key,
+				'prio'     => $key,
 				'callback' => $cb,
 			);
 		}
@@ -271,7 +270,7 @@ class Backup_Command extends WP_CLI_Command {
 		foreach ( $excluded_tables as $table ) {
 			$key++;
 			$tables_to_custom_process[ $table ] = array(
-				'prio' => $key,
+				'prio'     => $key,
 				'callback' => false,
 			);
 		}
@@ -286,8 +285,8 @@ class Backup_Command extends WP_CLI_Command {
 		preg_match( $re, $table, $matches );
 
 		$internal_key = $table;
-		$blog_id = 1;
-		$prefixed = true;
+		$blog_id      = 1;
+		$prefixed     = true;
 		if ( ! empty( $matches ) ) {
 			// Print the entire match result
 			if ( ! isset( $matches[1] ) ) {
@@ -300,22 +299,22 @@ class Backup_Command extends WP_CLI_Command {
 			$prefixed = false;
 		}
 
-		return array($internal_key, $blog_id, $prefixed);
+		return array( $internal_key, $blog_id, $prefixed );
 	}
 
 	public static function get_table_name( $table, $key = 'curr' ) {
 		global $wpdb;
 
-		$dbname = DB_NAME;
-		$sql = "SHOW FULL TABLES WHERE Table_Type = 'BASE TABLE' AND `TABLES_IN_{$dbname}` REGEXP '^({$wpdb->base_prefix}(?:([0-9]*)_)?)?{$table}$'";
+		$dbname          = DB_NAME;
+		$sql             = "SHOW FULL TABLES WHERE Table_Type = 'BASE TABLE' AND `TABLES_IN_{$dbname}` REGEXP '^({$wpdb->base_prefix}(?:([0-9]*)_)?)?{$table}$'";
 		$table_name_full = $wpdb->get_var( $sql );
 
-		if( is_null( $table_name_full ) ) {
+		if ( is_null( $table_name_full ) ) {
 			$table_name_full = $table;
 		}
 
 		list($internal_key, $blog_id, $prefixed) = self::get_table_internal_info( $table_name_full );
-		$table = $internal_key;
+		$table                                   = $internal_key;
 
 		if ( $prefixed ) {
 			if ( in_array( $table, self::global_tables() ) ) {
@@ -335,7 +334,7 @@ class Backup_Command extends WP_CLI_Command {
 	public static function get_tables_names() {
 		$tables_info = self::get_tables_info();
 		foreach ( $tables_info as $table => $info ) {
-			$new_info = array(
+			$new_info              = array(
 				'currname' => self::get_table_name( $table, 'curr' ),
 				'tempname' => self::get_table_name( $table, 'temp' ),
 			);
@@ -356,24 +355,24 @@ class Backup_Command extends WP_CLI_Command {
 		$clean_table_name = str_replace( $wpdb->base_prefix, '', $clean_table_name );
 
 		$tables_info = self::get_tables_info();
-		$is_custom = isset( $tables_info[ $clean_table_name ] );
+		$is_custom   = isset( $tables_info[ $clean_table_name ] );
 
 		$table_file = self::get_temp_filename( $table_final_name );
 
 		if ( ! self::$doing_deferred && in_array( $clean_table_name, self::global_tables() ) && $is_custom ) {
-			$prio = $tables_info[ $clean_table_name ]['prio'];
-			self::$deferred_table_dumps[$prio] = array($table, $replace_name);
+			$prio                                = $tables_info[ $clean_table_name ]['prio'];
+			self::$deferred_table_dumps[ $prio ] = array( $table, $replace_name );
 			return $table_file;
 		}
 
 		do_action( 'wp_local_maker_before_dump_' . $clean_table_name, $table );
 		do_action( 'wp_local_maker_before_dump', $table, $clean_table_name );
 
-		if( self::$new_domain ) {
-			if( in_array( $clean_table_name, array( 'blogs', 'site' ) ) ) {
-				$search_command = 'search-replace '.self::$old_domain.' '.self::$new_domain.' '.$table.' --all-tables --precise --report=0';
+		if ( self::$new_domain ) {
+			if ( in_array( $clean_table_name, array( 'blogs', 'site' ) ) ) {
+				$search_command = 'search-replace ' . self::$old_domain . ' ' . self::$new_domain . ' ' . $table . ' --all-tables --precise --report=0';
 			} else {
-				$search_command = 'search-replace //'.self::$old_domain.' //'.self::$new_domain.' '.$table.' --all-tables --precise --report=0';
+				$search_command = 'search-replace //' . self::$old_domain . ' //' . self::$new_domain . ' ' . $table . ' --all-tables --precise --report=0';
 			}
 			$options = array(
 				'return'     => 'all',   // Return 'STDOUT'; use 'all' for full object.
@@ -384,7 +383,7 @@ class Backup_Command extends WP_CLI_Command {
 			$ret = WP_CLI::runcommand( $search_command, $options );
 
 			if ( $ret->stderr ) {
-				echo "ERROR:" . $ret->stderr . "\n";
+				echo 'ERROR:' . $ret->stderr . "\n";
 			}
 			if ( $ret->stdout ) {
 				echo $ret->stdout . "\n";
@@ -403,8 +402,8 @@ class Backup_Command extends WP_CLI_Command {
 	public static function dependant_table_dump( $current_index, $after = '' ) {
 		global $wpdb;
 		$tables_info = self::get_tables_names();
-		$current = $tables_info[ $current_index ]['currname'];
-		$temp = $tables_info[ $current_index ]['tempname'];
+		$current     = $tables_info[ $current_index ]['currname'];
+		$temp        = $tables_info[ $current_index ]['tempname'];
 
 		$wpdb->query( "CREATE TABLE IF NOT EXISTS {$temp} LIKE {$current}" );
 
@@ -423,7 +422,7 @@ class Backup_Command extends WP_CLI_Command {
 	public static function dependant_table_dump_single( $current, $dependant, $current_key, $dependant_key ) {
 		global $wpdb;
 		$tables_info = self::get_tables_names();
-		$temp_posts = $tables_info[ $dependant ]['tempname'];
+		$temp_posts  = $tables_info[ $dependant ]['tempname'];
 		return self::dependant_table_dump( $current, "WHERE p.{$current_key} IN ( SELECT {$dependant_key} FROM {$temp_posts} p2 GROUP BY {$dependant_key} )" );
 	}
 
@@ -445,11 +444,11 @@ class Backup_Command extends WP_CLI_Command {
 
 	protected static function array_unique_last( $arr ) {
 		$res = array();
-		for ($i = count($arr) - 1; $i >= 0; --$i) {
-			$item = $arr[$i];
+		for ( $i = count( $arr ) - 1; $i >= 0; --$i ) {
+			$item = $arr[ $i ];
 
-			if (!isset($res[$item])) {
-				$res = array($item => $item) + $res; // unshift
+			if ( ! isset( $res[ $item ] ) ) {
+				$res = array( $item => $item ) + $res; // unshift
 			}
 		}
 
@@ -459,10 +458,10 @@ class Backup_Command extends WP_CLI_Command {
 	protected static function dump_data() {
 		global $wpdb;
 
-		$files = array();
+		$files  = array();
 		$tables = $wpdb->get_col( "SHOW FULL TABLES WHERE Table_Type = 'BASE TABLE'" );
 
-		$tables_info = self::get_tables_info();
+		$tables_info   = self::get_tables_info();
 		$global_tables = self::global_tables();
 
 		$process_queue = array();
@@ -475,7 +474,7 @@ class Backup_Command extends WP_CLI_Command {
 
 			if ( ! isset( $tables_info[ $internal_key ] ) ) {
 				$current = $table;
-				$temp = self::get_table_name( $current, 'temp' );
+				$temp    = self::get_table_name( $current, 'temp' );
 
 				$wpdb->query( "CREATE TABLE IF NOT EXISTS {$temp} LIKE {$current}" );
 				$query = "REPLACE INTO {$temp} SELECT * FROM {$current}";
@@ -541,14 +540,14 @@ class Backup_Command extends WP_CLI_Command {
 			}
 		}
 
-		if( ! empty( self::$deferred_table_dumps ) ) {
+		if ( ! empty( self::$deferred_table_dumps ) ) {
 			ksort( self::$deferred_table_dumps, SORT_NUMERIC );
-			while( ! empty( self::$deferred_table_dumps ) ) {
+			while ( ! empty( self::$deferred_table_dumps ) ) {
 				self::$doing_deferred = true;
-	
+
 				$data = array_shift( self::$deferred_table_dumps );
-	
-				$files[] = call_user_func_array( array(__CLASS__, 'write_table_file'), $data );
+
+				$files[] = call_user_func_array( array( __CLASS__, 'write_table_file' ), $data );
 			}
 		}
 
@@ -562,10 +561,10 @@ class Backup_Command extends WP_CLI_Command {
 	}
 
 	public static function adjust_file( $file, $find, $replace ) {
-		$lines = [];
-		$source = fopen( $file, 'r' );
+		$lines       = [];
+		$source      = fopen( $file, 'r' );
 		$target_name = self::get_temp_filename();
-		$target = fopen( $target_name, 'w' );
+		$target      = fopen( $target_name, 'w' );
 
 		while ( ! feof( $source ) ) {
 			$str = str_replace( $find, $replace, fgets( $source ) );
@@ -585,7 +584,7 @@ class Backup_Command extends WP_CLI_Command {
 		$target = fopen( $result_file, 'w' );
 
 		foreach ( $files as $file ) {
-			if( ! file_exists( $file ) ) {
+			if ( ! file_exists( $file ) ) {
 				continue; // maybe it was already included
 			}
 
@@ -600,7 +599,7 @@ class Backup_Command extends WP_CLI_Command {
 
 	protected static function cleanup() {
 		global $wpdb;
-		$tables = $wpdb->get_col("SHOW TABLES LIKE '_WPLM%'");
+		$tables = $wpdb->get_col( "SHOW TABLES LIKE '_WPLM%'" );
 		foreach ( $tables as $table ) {
 			$wpdb->query( "DROP TABLE IF EXISTS {$table}" );
 		}
@@ -609,46 +608,60 @@ class Backup_Command extends WP_CLI_Command {
 	}
 
 	protected static function maybe_zip_folder( $rootPath, $zip_fn ) {
-		echo "Compressing directory";
+		echo 'Compressing directory';
 
 		$rootPath = untrailingslashit( $rootPath );
 
-		$zip = WP_LMaker_Dir_Crawler::process( array( 
-			'path' => $rootPath,
-			'ignored_paths' => apply_filters( "wp_local_maker_zip_ignored_paths", array( 'wp-content/uploads' ) ),
-		), $zip_fn );
+		$zip = WP_LMaker_Dir_Crawler::process(
+			array(
+				'path'          => $rootPath,
+				'ignored_paths' => apply_filters( 'wp_local_maker_zip_ignored_paths', array( 'wp-content/uploads' ) ),
+			),
+			$zip_fn
+		);
 
-		$zip->addEmptyDir('wp-content/uploads');
+		$zip->addEmptyDir( 'wp-content/uploads' );
 
-		foreach( apply_filters( "wp_local_maker_extra_compressed_paths", array() ) as $relative_path_to_compress ) {
-			WP_LMaker_Dir_Crawler::process( array( 
-				'path' => $rootPath . '/' . $relative_path_to_compress,
-				'rootPath' => $rootPath,
-			), $zip );
+		foreach ( apply_filters( 'wp_local_maker_extra_compressed_paths', array() ) as $relative_path_to_compress ) {
+			WP_LMaker_Dir_Crawler::process(
+				array(
+					'path'     => $rootPath . '/' . $relative_path_to_compress,
+					'rootPath' => $rootPath,
+				),
+				$zip
+			);
 		}
 
-		$source_wp_conf = ABSPATH . "wp-config.php";
-		$target_wp_conf = ABSPATH . "wp-config-wplm-temp.php";
-		$copied = @copy( $source_wp_conf, $target_wp_conf );
-		if( $copied ) {
+		$source_wp_conf = ABSPATH . 'wp-config.php';
+		$target_wp_conf = ABSPATH . 'wp-config-wplm-temp.php';
+		$copied         = @copy( $source_wp_conf, $target_wp_conf );
+		if ( $copied ) {
 			$config_transformer = new WPConfigTransformer( $target_wp_conf );
-			$config_transformer->update( 'constant', 'DOMAIN_CURRENT_SITE', self::$new_domain, array( 'add' => false, 'normalize' => true ) );
+			$config_transformer->update(
+				'constant',
+				'DOMAIN_CURRENT_SITE',
+				self::$new_domain,
+				array(
+					'add'       => false,
+					'normalize' => true,
+				)
+			);
 			$config_transformer->remove( 'constant', 'WP_SITEURL' );
 			$config_transformer->remove( 'constant', 'WP_HOME' );
 			$home_url = is_multisite() ? network_home_url() : home_url();
-			$home_url = parse_url($home_url);
+			$home_url = parse_url( $home_url );
 			$home_url = $home_url['host'] . ( isset( $home_url['port'] ) ? $home_url['port'] : '' );
-			
-			$anchors = array("/* That's all, stop editing!", "# That's It. Pencils down");
-			foreach( $anchors as $anchor ) {
+
+			$anchors = array( "/* That's all, stop editing!", "# That's It. Pencils down" );
+			foreach ( $anchors as $anchor ) {
 				try {
 					$config_transformer->update( 'constant', 'WPLM_OLD_HOME', $home_url, array( 'anchor' => $anchor ) );
 					break;
-				} catch(Exception $e) {
-	
+				} catch ( Exception $e ) {
+
 				}
 			}
-			$zip->addFile( $target_wp_conf, "wp-config.php" );
+			$zip->addFile( $target_wp_conf, 'wp-config.php' );
 		}
 
 		do_action( 'wp_local_maker_before_closing_zip', $zip );
@@ -657,7 +670,7 @@ class Backup_Command extends WP_CLI_Command {
 			return new WP_Error("too_large", "Folder is too large to compress");
 		}*/
 
-		// $object_data = $this->parse_addon_data( $object['info'] ); 
+		// $object_data = $this->parse_addon_data( $object['info'] );
 		// $zip->setArchiveComment( $object_data );
 
 		// Zip archive will be created only after closing object
@@ -781,8 +794,8 @@ class Backup_Command extends WP_CLI_Command {
 	private static function get_columns( $table ) {
 		global $wpdb;
 
-		$table_sql = self::esc_sql_ident( $table );
-		$primary_keys = $text_columns = $all_columns = array();
+		$table_sql       = self::esc_sql_ident( $table );
+		$primary_keys    = $text_columns = $all_columns = array();
 		$suppress_errors = $wpdb->suppress_errors();
 		if ( ( $results = $wpdb->get_results( "DESCRIBE $table_sql" ) ) ) {
 			foreach ( $results as $col ) {

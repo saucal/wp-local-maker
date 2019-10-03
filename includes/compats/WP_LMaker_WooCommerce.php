@@ -29,7 +29,7 @@ class WP_LMaker_WooCommerce extends WP_LMaker_Abstract_Addon {
 
 	public function enqueue_process_order_items( $tables ) {
 		global $wpdb;
-		$tables['woocommerce_order_items'] = array( $this, 'process_woocommerce_order_items' );
+		$tables['woocommerce_order_items']    = array( $this, 'process_woocommerce_order_items' );
 		$tables['woocommerce_order_itemmeta'] = array( $this, 'process_woocommerce_order_itemmeta' );
 		return $tables;
 	}
@@ -42,7 +42,7 @@ class WP_LMaker_WooCommerce extends WP_LMaker_Abstract_Addon {
 
 	public function enqueue_process_payment_tokens( $tables ) {
 		global $wpdb;
-		$tables['woocommerce_payment_tokens'] = array( $this, 'process_woocommerce_payment_tokens' );
+		$tables['woocommerce_payment_tokens']    = array( $this, 'process_woocommerce_payment_tokens' );
 		$tables['woocommerce_payment_tokenmeta'] = array( $this, 'process_woocommerce_payment_tokenmeta' );
 		return $tables;
 	}
@@ -75,7 +75,7 @@ class WP_LMaker_WooCommerce extends WP_LMaker_Abstract_Addon {
 	public function process_orders( $tables_info ) {
 		global $wpdb;
 		$current = $tables_info['posts']['currname'];
-		$temp = $tables_info['posts']['tempname'];
+		$temp    = $tables_info['posts']['tempname'];
 
 		// Handle orders
 		$wpdb->query(
@@ -101,12 +101,12 @@ class WP_LMaker_WooCommerce extends WP_LMaker_Abstract_Addon {
 	public function process_coupons( $tables_info ) {
 		global $wpdb;
 		$current = $tables_info['posts']['currname'];
-		$temp = $tables_info['posts']['tempname'];
+		$temp    = $tables_info['posts']['tempname'];
 		$curr_oi = $tables_info['woocommerce_order_items']['currname'];
 
-		$table_exists = $wpdb->get_col("SHOW TABLES LIKE '{$curr_oi}'");
+		$table_exists = $wpdb->get_col( "SHOW TABLES LIKE '{$curr_oi}'" );
 
-		if( empty( $table_exists ) ) {
+		if ( empty( $table_exists ) ) {
 			return;
 		}
 
@@ -131,7 +131,7 @@ class WP_LMaker_WooCommerce extends WP_LMaker_Abstract_Addon {
 	public function process_products( $tables_info ) {
 		global $wpdb;
 		$current = $tables_info['posts']['currname'];
-		$temp = $tables_info['posts']['tempname'];
+		$temp    = $tables_info['posts']['tempname'];
 
 		// Handle products
 		$wpdb->query(
@@ -144,11 +144,11 @@ class WP_LMaker_WooCommerce extends WP_LMaker_Abstract_Addon {
 
 	public function process_customers( $tables_info ) {
 		global $wpdb;
-		$current = $tables_info['users']['currname'];
-		$temp = $tables_info['users']['tempname'];
-		$temp_posts = $tables_info['posts']['tempname'];
+		$current       = $tables_info['users']['currname'];
+		$temp          = $tables_info['users']['tempname'];
+		$temp_posts    = $tables_info['posts']['tempname'];
 		$temp_postmeta = $tables_info['postmeta']['tempname'];
-		$user_keys = Backup_Command::get_table_keys_group( $current, 'u' );
+		$user_keys     = Backup_Command::get_table_keys_group( $current, 'u' );
 
 		// Export customers
 		$wpdb->query(

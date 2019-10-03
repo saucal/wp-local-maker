@@ -14,7 +14,7 @@ abstract class WP_LMaker_Abstract_Addon {
 	}
 
 	protected function is_plugin_active( $plugin ) {
-		include_once( ABSPATH . 'wp-admin/includes/plugin.php' );
+		include_once ABSPATH . 'wp-admin/includes/plugin.php';
 		return is_plugin_active( $plugin );
 	}
 }
