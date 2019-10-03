@@ -326,7 +326,7 @@ class Backup_Command extends WP_CLI_Command {
 		}
 
 		if ( 'temp' === $key ) {
-			return '_WPLM_' . $table . '_' . hash_hmac( 'crc32', $table, '123456' );
+			return '_WPLM_' . wp_hash( $table, 'nonce' );
 		} else {
 			return $table;
 		}
