@@ -19,7 +19,7 @@ class WP_LMaker_SCR extends WP_LMaker_Abstract_Addon {
 
 	public function enqueue_process_scr( $tables ) {
 		global $wpdb;
-		$tables['scr_relationships'] = array( $this, 'process_scr_relationships' );
+		$tables['scr_relationships']    = array( $this, 'process_scr_relationships' );
 		$tables['scr_relationshipmeta'] = array( $this, 'process_scr_relationshipmeta' );
 		return $tables;
 	}
@@ -33,8 +33,8 @@ class WP_LMaker_SCR extends WP_LMaker_Abstract_Addon {
 	public function process_scr_relationships() {
 		global $wpdb;
 		$tables_info = Backup_Command::get_tables_names();
-		$current = $tables_info['scr_relationships']['currname'];
-		$temp = $tables_info['scr_relationships']['tempname'];
+		$current     = $tables_info['scr_relationships']['currname'];
+		$temp        = $tables_info['scr_relationships']['tempname'];
 
 		$wpdb->query( "CREATE TABLE IF NOT EXISTS {$temp} LIKE {$current}" );
 

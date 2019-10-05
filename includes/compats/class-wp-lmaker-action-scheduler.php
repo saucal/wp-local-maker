@@ -23,7 +23,7 @@ class WP_LMaker_Action_Scheduler extends WP_LMaker_Abstract_Addon {
 	public function process_subscriptions_actions( $tables_info ) {
 		global $wpdb;
 		$current = $tables_info['posts']['currname'];
-		$temp = $tables_info['posts']['tempname'];
+		$temp    = $tables_info['posts']['tempname'];
 
 		// Handle subscriptions related actions
 		$wpdb->query(
@@ -36,7 +36,7 @@ class WP_LMaker_Action_Scheduler extends WP_LMaker_Abstract_Addon {
 	public function process_memberships_actions( $tables_info ) {
 		global $wpdb;
 		$current = $tables_info['posts']['currname'];
-		$temp = $tables_info['posts']['tempname'];
+		$temp    = $tables_info['posts']['tempname'];
 
 		// Handle memberships related actions
 		$wpdb->query(

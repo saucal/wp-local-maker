@@ -13,9 +13,9 @@ class WP_LMaker_Init_Compats {
 	public function __construct() {
 
 		// Addon Abstract Class
-		require_once 'WP_LMaker_Abstract_Addon.php';
+		require_once 'class-wp-lmaker-abstract-addon.php';
 
-		$compats = glob( __DIR__ . '/compats/WP_LMaker*.php' );
+		$compats = glob( __DIR__ . '/compats/class-wp-lmaker*.php' );
 		foreach ( $compats as $compat ) {
 			require_once $compat;
 		}
