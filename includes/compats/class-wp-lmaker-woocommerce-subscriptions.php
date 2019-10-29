@@ -26,6 +26,8 @@ class WP_LMaker_WooCommerce_Subscriptions extends WP_LMaker_Abstract_Addon {
 		$temp    = $tables_info['posts']['tempname'];
 		$curr_pm = $tables_info['postmeta']['currname'];
 
+		$limit = Backup_Command::get_limit_for_tag( 'subscriptions', 50 );
+
 		// Handle subscriptions
 		$wpdb->query(
 			"REPLACE INTO {$temp}
@@ -33,7 +35,7 @@ class WP_LMaker_WooCommerce_Subscriptions extends WP_LMaker_Abstract_Addon {
             WHERE p.post_status NOT IN ('auto-draft', 'trash')
             AND p.post_type IN ( 'shop_subscription' )
             ORDER BY p.post_date DESC
-            LIMIT 50"
+            LIMIT {$limit}"
 		);
 
 		do_action( 'wp_local_maker_subscriptions_after_subscriptions', $tables_info );

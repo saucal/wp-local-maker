@@ -78,6 +78,8 @@ class WP_LMaker_Core {
 			AND p.post_type NOT IN ( {$ignored_post_types} )"
 		);
 
+		$limit = Backup_Command::get_limit_for_tag( 'posts', 50 );
+
 		// Handle posts
 		$wpdb->query(
 			"REPLACE INTO {$temp}
@@ -85,7 +87,7 @@ class WP_LMaker_Core {
 			WHERE p.post_status NOT IN ('auto-draft', 'trash')
 			AND p.post_type IN ( 'post' )
 			ORDER BY p.post_date DESC
-			LIMIT 50"
+			LIMIT {$limit}"
 		);
 
 		do_action( 'wp_local_maker_posts_after_posts', $tables_info );
@@ -98,6 +100,8 @@ class WP_LMaker_Core {
 			AND p.post_type IN ( 'attachment' ) AND p.post_parent IN ( SELECT ID FROM {$temp} p2 )"
 		);
 
+		$limit = Backup_Command::get_limit_for_tag( 'attachments', 500 );
+
 		// Handle unrelated attachments
 		$wpdb->query(
 			"REPLACE INTO {$temp}
@@ -105,7 +109,7 @@ class WP_LMaker_Core {
 			WHERE p.post_status NOT IN ('auto-draft', 'trash')
 			AND p.post_type IN ( 'attachment' ) AND p.post_parent = 0
             ORDER BY p.post_date DESC
-			LIMIT 500"
+			LIMIT {$limit}"
 		);
 
 		// Loop until there's no missing parents
