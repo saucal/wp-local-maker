@@ -167,8 +167,12 @@ class Backup_Command extends WP_CLI_Command {
 		WP_CLI::success( sprintf( "Exported to '%s'. Export size: %s", $result_file, size_format( filesize( $result_file ) ) ) );
 	}
 
+	public static function get_flag_value( $flag, $default = null ) {
+		return WP_CLI\Utils\get_flag_value( self::$current_assoc_args, $flag, $default );
+	}
+
 	public static function get_limit_for_tag( $tag, $default = null ) {
-		$limit = WP_CLI\Utils\get_flag_value( self::$current_assoc_args, 'limit-' . $tag, false );
+		$limit = self::get_flag_value( 'limit-' . $tag, false );
 		if( false !== $limit ) {
 			return intval( $limit );
 		}
