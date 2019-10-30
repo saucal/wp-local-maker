@@ -212,6 +212,10 @@ class Backup_Command extends WP_CLI_Command {
 	}
 
 	public static function dump_structure() {
+		if( Backup_Command::verbosity_is( 2 ) ) {
+			WP_CLI::line( 'Exporting database structure (all tables).' );
+		}
+
 		$command          = '/usr/bin/env mysqldump --no-defaults %s --single-transaction --quick';
 		$command_esc_args = array( DB_NAME );
 
@@ -229,6 +233,10 @@ class Backup_Command extends WP_CLI_Command {
 		);
 
 		$first_pass = self::adjust_structure( $first_pass );
+
+		if( Backup_Command::verbosity_is( 1 ) ) {
+			WP_CLI::line( sprintf( 'Exported database structure (all tables). Export size: %s', size_format( filesize( $first_pass ) ) ) );
+		}
 
 		return $first_pass;
 	}
@@ -644,7 +652,13 @@ class Backup_Command extends WP_CLI_Command {
 		global $wpdb;
 		$tables = $wpdb->get_col( "SHOW TABLES LIKE '_WPLM%'" );
 		foreach ( $tables as $table ) {
+			if( Backup_Command::verbosity_is( 3 ) ) {
+				WP_CLI::line( "Removing temporary table {$table}." );
+			}
 			$wpdb->query( "DROP TABLE IF EXISTS {$table}" );
+			if( Backup_Command::verbosity_is( 2 ) ) {
+				WP_CLI::line( "Removed temporary table {$table}." );
+			}
 		}
 		self::$new_domain = self::$old_domain = false; // phpcs:ignore Squiz.PHP.DisallowMultipleAssignments
 		@unlink( self::get_db_file_path() );
