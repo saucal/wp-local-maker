@@ -126,9 +126,24 @@ class WP_LMaker_Core {
 		$file = Backup_Command::write_table_file( $temp, $current );
 
 		if (Backup_Command::verbosity_is( 2 ) ) {
-			$results = $wpdb->get_results( "SELECT post_type, COUNT(*) as num FROM {$temp} GROUP BY post_type" );
+			$columns = $wpdb->get_col( 
+				$wpdb->prepare(
+					"SELECT column_name
+					FROM information_schema.columns 
+					WHERE table_schema=%s AND table_name=%s",
+					DB_NAME,
+					$temp
+				)
+			);
+			
+			$size_col = "SUM( LENGTH( CONCAT_WS('\", \"', " . implode( ", ", $columns ). ") ) )";
+			$results = $wpdb->get_results( 
+				"SELECT post_type, COUNT(*) as num, {$size_col} as size
+				FROM {$temp} 
+				GROUP BY post_type
+				ORDER BY size DESC" );
 			foreach( $results as $row ) {
-				WP_CLI::line( sprintf( "  Including %s %s", $row->num, $row->post_type ) );
+				WP_CLI::line( sprintf( "  Including %s %s posts, which is %s of data", $row->num, $row->post_type, size_format( $row->size ) ) );
 			}
 		}
 
@@ -281,7 +296,7 @@ class WP_LMaker_Core {
 				LIMIT 10"
 			);
 			foreach( $results as $row ) {
-				WP_CLI::line( sprintf( "  Including %s options prefixed %s which is %s of data", $row->num, "'{$row->option_prefix}%'", size_format( $row->size ) ) );
+				WP_CLI::line( sprintf( "  Including %s options prefixed %s, which is %s of data", $row->num, "'{$row->option_prefix}%'", size_format( $row->size ) ) );
 			}
 		}
 
