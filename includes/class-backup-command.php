@@ -46,6 +46,8 @@ class Backup_Command extends WP_CLI_Command {
 
 	protected static $current_assoc_args = array();
 
+	protected static $exported_files = array();
+
 	/**
 	 * Exports the database to a file or to STDOUT.
 	 *
@@ -157,6 +159,15 @@ class Backup_Command extends WP_CLI_Command {
 
 		if ( Backup_Command::verbosity_is( 2 ) ) {
 			WP_CLI::line( sprintf( 'SQL dump is %s (uncompressed).', size_format( filesize( $db_file ) ) ) );
+		}
+
+		if ( Backup_Command::verbosity_is( 3 ) ) {
+			arsort( self::$exported_files, SORT_NUMERIC );
+			$top = array_slice( self::$exported_files, 0, 20, true );
+			WP_CLI::line( 'Largest tables exported' );
+			foreach( $top as $table => $size ) {
+				WP_CLI::line( sprintf( '  %s export is %s.', $table, size_format( $size ) ) );
+			}
 		}
 
 		$db_only = WP_CLI\Utils\get_flag_value( $assoc_args, 'db-only', false );
@@ -446,9 +457,13 @@ class Backup_Command extends WP_CLI_Command {
 			$file = self::adjust_file( $file, "`{$table}`", "`{$replace_name}`" );
 		}
 
+		$original_table_name = $replace_name ? $replace_name : $table;
+		$export_size = filesize( $file );
 		if( Backup_Command::verbosity_is( 1 ) ) {
-			WP_CLI::line( sprintf( 'Exported %d rows from %s. Export size: %s', $wpdb->get_var( "SELECT COUNT(*) FROM {$table}" ), $replace_name ? $replace_name : $table, size_format( filesize( $file ) ) ) );
+			WP_CLI::line( sprintf( 'Exported %d rows from %s. Export size: %s', $wpdb->get_var( "SELECT COUNT(*) FROM {$table}" ), $original_table_name, size_format( $export_size ) ) );
 		}
+
+		self::$exported_files[ $original_table_name ] = $export_size;
 
 		return $file;
 	}
@@ -665,6 +680,7 @@ class Backup_Command extends WP_CLI_Command {
 			}
 		}
 		self::$new_domain = self::$old_domain = false; // phpcs:ignore Squiz.PHP.DisallowMultipleAssignments
+		self::$exported_files = array();
 		@unlink( self::get_db_file_path() );
 	}
 
