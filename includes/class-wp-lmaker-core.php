@@ -152,7 +152,27 @@ class WP_LMaker_Core {
 
 	public function process_postmeta() {
 		global $wpdb;
-		return Backup_Command::dependant_table_dump_single( 'postmeta', 'posts', 'post_id', 'ID' );
+		$result = Backup_Command::dependant_table_dump_single( 'postmeta', 'posts', 'post_id', 'ID' );
+		if (Backup_Command::verbosity_is( 2 ) ) {
+			$tables_info = Backup_Command::get_tables_names();
+			$temp_pm = $tables_info['postmeta']['tempname'];
+			$temp_p  = $tables_info['posts']['tempname'];
+			$results = $wpdb->get_results( 
+				"SELECT 
+				p.post_type, 
+				COUNT(*) as num, 
+				SUM( LENGTH( meta_value ) ) as size 
+				FROM {$temp_pm} pm 
+				LEFT JOIN {$temp_p} p ON p.ID = pm.post_id
+				GROUP BY p.post_type 
+				ORDER BY size DESC"
+			);
+			foreach( $results as $row ) {
+				WP_CLI::line( sprintf( "  Including %s meta rows related to %s posts, which is %s of data", $row->num, $row->post_type, size_format( $row->size ) ) );
+			}
+		}
+		
+		return $result;
 	}
 
 	public function process_comments() {
