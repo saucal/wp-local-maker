@@ -264,10 +264,26 @@ class WP_LMaker_Core {
 		$wpdb->query(
 			"REPLACE INTO {$temp}
 			SELECT * FROM {$current}
-			WHERE option_name NOT LIKE '\_transient%' && option_name NOT LIKE '\_site\_transient%'"
+			WHERE option_name NOT LIKE '\_transient%' AND option_name NOT LIKE '\_site\_transient%'"
 		);
 
 		$file = Backup_Command::write_table_file( $temp, $current );
+		
+		if (Backup_Command::verbosity_is( 2 ) ) {
+			$results = $wpdb->get_results( 
+				"SELECT 
+				SUBSTRING( option_name, 1, 10 ) as option_prefix, 
+				COUNT(*) as num, 
+				SUM( LENGTH( option_value ) ) as size
+				FROM {$temp} 
+				GROUP BY option_prefix 
+				ORDER BY size DESC
+				LIMIT 10"
+			);
+			foreach( $results as $row ) {
+				WP_CLI::line( sprintf( "  Including %s options prefixed %s which is %s of data", $row->num, "'{$row->option_prefix}%'", size_format( $row->size ) ) );
+			}
+		}
 
 		return $file;
 	}
