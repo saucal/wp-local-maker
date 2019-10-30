@@ -129,6 +129,8 @@ class Backup_Command extends WP_CLI_Command {
 
 		global $wpdb;
 
+		self::$current_assoc_args = $assoc_args;
+
 		if ( ! empty( $args[0] ) ) {
 			$result_file = $args[0];
 		} else {
@@ -137,8 +139,6 @@ class Backup_Command extends WP_CLI_Command {
 		}
 
 		self::cleanup(); // early cleanup, to cleanup unfinished exports.
-
-		self::$current_assoc_args = $assoc_args;
 
 		$replace = WP_CLI\Utils\get_flag_value( $assoc_args, 'new-domain', false );
 		if ( $replace ) {
@@ -163,6 +163,7 @@ class Backup_Command extends WP_CLI_Command {
 		}
 
 		self::cleanup();
+		self::$current_assoc_args = array();
 
 		WP_CLI::success( sprintf( "Exported to '%s'. Export size: %s", $result_file, size_format( filesize( $result_file ) ) ) );
 	}
@@ -646,7 +647,6 @@ class Backup_Command extends WP_CLI_Command {
 			$wpdb->query( "DROP TABLE IF EXISTS {$table}" );
 		}
 		self::$new_domain = self::$old_domain = false; // phpcs:ignore Squiz.PHP.DisallowMultipleAssignments
-		self::$current_assoc_args = array();
 		@unlink( self::get_db_file_path() );
 	}
 
