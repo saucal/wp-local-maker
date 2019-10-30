@@ -155,6 +155,10 @@ class Backup_Command extends WP_CLI_Command {
 
 		$db_file = self::join_files( $files );
 
+		if ( Backup_Command::verbosity_is( 2 ) ) {
+			WP_CLI::line( sprintf( 'SQL dump is %s (uncompressed).', size_format( filesize( $db_file ) ) ) );
+		}
+
 		$db_only = WP_CLI\Utils\get_flag_value( $assoc_args, 'db-only', false );
 		if ( $db_only ) {
 			self::maybe_zip_file( $db_file, $result_file );
