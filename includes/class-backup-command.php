@@ -652,11 +652,11 @@ class Backup_Command extends WP_CLI_Command {
 		global $wpdb;
 		$tables = $wpdb->get_col( "SHOW TABLES LIKE '_WPLM%'" );
 		foreach ( $tables as $table ) {
-			if( Backup_Command::verbosity_is( 3 ) ) {
+			if( Backup_Command::verbosity_is( 5 ) ) {
 				WP_CLI::line( "Removing temporary table {$table}." );
 			}
 			$wpdb->query( "DROP TABLE IF EXISTS {$table}" );
-			if( Backup_Command::verbosity_is( 2 ) ) {
+			if( Backup_Command::verbosity_is( 4 ) ) {
 				WP_CLI::line( "Removed temporary table {$table}." );
 			}
 		}
