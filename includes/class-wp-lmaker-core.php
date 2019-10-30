@@ -125,6 +125,13 @@ class WP_LMaker_Core {
 
 		$file = Backup_Command::write_table_file( $temp, $current );
 
+		if (Backup_Command::verbosity_is( 2 ) ) {
+			$results = $wpdb->get_results( "SELECT post_type, COUNT(*) as num FROM {$temp} GROUP BY post_type" );
+			foreach( $results as $row ) {
+				WP_CLI::line( sprintf( "  Including %s %s", $row->num, $row->post_type ) );
+			}
+		}
+
 		return $file;
 	}
 
