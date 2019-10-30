@@ -171,6 +171,22 @@ class Backup_Command extends WP_CLI_Command {
 		return WP_CLI\Utils\get_flag_value( self::$current_assoc_args, $flag, $default );
 	}
 
+	public static function verbosity_is( $level ) {
+		return self::get_verbosity_level() >= $level;
+	}
+
+	public static function get_verbosity_level() {
+		for( $i = 1; $i <= 5; $i ++ ) {
+			$flag = str_repeat('v', $i);
+			$candidate = self::get_flag_value( $flag, false );
+			if( false !== $candidate ) {
+				return $i;
+			}
+		}
+
+		return 0;
+	}
+
 	public static function get_limit_for_tag( $tag, $default = null ) {
 		$limit = self::get_flag_value( 'limit-' . $tag, false );
 		if( false !== $limit ) {
@@ -417,7 +433,9 @@ class Backup_Command extends WP_CLI_Command {
 			$file = self::adjust_file( $file, "`{$table}`", "`{$replace_name}`" );
 		}
 
-		WP_CLI::line( sprintf( 'Exported %d rows from %s. Export size: %s', $wpdb->get_var( "SELECT COUNT(*) FROM {$table}" ), $replace_name ? $replace_name : $table, size_format( filesize( $file ) ) ) );
+		if( Backup_Command::verbosity_is( 1 ) ) {
+			WP_CLI::line( sprintf( 'Exported %d rows from %s. Export size: %s', $wpdb->get_var( "SELECT COUNT(*) FROM {$table}" ), $replace_name ? $replace_name : $table, size_format( filesize( $file ) ) ) );
+		}
 
 		return $file;
 	}
