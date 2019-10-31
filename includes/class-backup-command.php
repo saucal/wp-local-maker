@@ -137,7 +137,7 @@ class Backup_Command extends WP_CLI_Command {
 			$result_file = $args[0];
 		} else {
 			$hash        = substr( md5( wp_rand( PHP_INT_MIN, PHP_INT_MAX ) ), 0, 7 );
-			$result_file = sprintf( 'WPLM-%s-%s-%s.zip', DB_NAME, date( 'Y-m-d' ), $hash );
+			$result_file = sprintf( 'WPLM-%s-%s-%s.zip', DB_NAME, date( 'Y-m-d-H-i-s' ), $hash );
 		}
 
 		self::cleanup(); // early cleanup, to cleanup unfinished exports.
