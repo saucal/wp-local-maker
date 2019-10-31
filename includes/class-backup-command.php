@@ -284,6 +284,7 @@ class Backup_Command extends WP_CLI_Command {
 		$command_esc_args = array( DB_NAME );
 
 		$command .= ' --no-create-info';
+		$command .= ' --complete-insert';
 
 		$command           .= ' --tables';
 		$command           .= ' %s';
