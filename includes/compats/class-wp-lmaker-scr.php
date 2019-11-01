@@ -18,6 +18,7 @@ class WP_LMaker_SCR extends WP_LMaker_Abstract_Addon {
 		$this->config = (object) wp_parse_args( $config, array(
 			'scr_r' => 'scr_relationships',
 			'scr_rm' => 'scr_relationshipmeta',
+			'scr_rm_r_key' => 'scr_relationship_id',
 		) );
 		add_filter( 'wp_local_maker_custom_process_tables', array( $this, 'enqueue_process_scr' ), 45 );
 		add_filter( 'wp_local_maker_global_tables', array( $this, 'register_global_tables' ), 45 );
@@ -74,7 +75,7 @@ class WP_LMaker_SCR extends WP_LMaker_Abstract_Addon {
 
 	public function process_scr_relationshipmeta() {
 		global $wpdb;
-		return Backup_Command::dependant_table_dump_single( $this->config->scr_rm, $this->config->scr_r, 'scr_relationship_id', 'rel_id' );
+		return Backup_Command::dependant_table_dump_single( $this->config->scr_rm, $this->config->scr_r, $this->config->scr_rm_r_key, 'rel_id' );
 	}
 }
 
