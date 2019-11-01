@@ -364,6 +364,10 @@ class Backup_Command extends WP_CLI_Command {
 		return array( $internal_key, $blog_id, $prefixed );
 	}
 
+	public static function get_table_temp_name( $table ) {
+		return '_WPLM_' . wp_hash( $table, 'nonce' );
+	}
+
 	public static function get_table_name( $table, $key = 'curr' ) {
 		global $wpdb;
 
@@ -387,7 +391,7 @@ class Backup_Command extends WP_CLI_Command {
 		}
 
 		if ( 'temp' === $key ) {
-			return '_WPLM_' . wp_hash( $table, 'nonce' );
+			return self::get_table_temp_name( $table );
 		} else {
 			return $table;
 		}
@@ -544,7 +548,7 @@ class Backup_Command extends WP_CLI_Command {
 
 			if ( ! isset( $tables_info[ $internal_key ] ) ) {
 				$current = $table;
-				$temp    = self::get_table_name( $current, 'temp' );
+				$temp    = self::get_table_temp_name( $current );
 
 				$wpdb->query( "CREATE TABLE IF NOT EXISTS {$temp} LIKE {$current}" );
 				$query = "REPLACE INTO {$temp} SELECT * FROM {$current}";
