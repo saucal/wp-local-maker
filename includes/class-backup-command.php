@@ -100,6 +100,11 @@ class Backup_Command extends WP_CLI_Command {
 
 		self::cleanup(); // early cleanup, to cleanup unfinished exports.
 
+		$db_only = WP_CLI\Utils\get_flag_value( $assoc_args, 'db-only', false );
+		
+		$target_folder = getcwd();
+		$method        = 'fs';
+
 		$replace = WP_CLI\Utils\get_flag_value( $assoc_args, 'new-domain', false );
 		if ( $replace ) {
 			self::$new_domain = $replace;
@@ -128,17 +133,25 @@ class Backup_Command extends WP_CLI_Command {
 			}
 		}
 
-		$db_only = WP_CLI\Utils\get_flag_value( $assoc_args, 'db-only', false );
+		$result_file_tmp = self::get_temp_filename( 'result-file' );
 		if ( $db_only ) {
-			self::maybe_zip_file( $db_file, $result_file, basename( self::get_db_file_path_target() ) );
+			self::maybe_zip_file( $db_file, $result_file_tmp, basename( self::get_db_file_path_target() ) );
 		} else {
-			self::maybe_zip_folder( ABSPATH, $result_file );
+			self::maybe_zip_folder( ABSPATH, $result_file_tmp );
 		}
 
 		self::cleanup();
 		self::$current_assoc_args = array();
 
-		WP_CLI::success( sprintf( "Exported to '%s'. Export size: %s", $result_file, size_format( filesize( $result_file ) ) ) );
+		$size = size_format( filesize( $result_file_tmp ) );
+
+		switch ( $method ) {
+			case 'fs':
+				$target_file = $target_folder . '/' . $result_file;
+				rename( $result_file_tmp, $target_file );
+				WP_CLI::success( sprintf( "Exported to '%s'. Export size: %s", $result_file, $size ) );
+				break;
+		}
 	}
 
 	public static function get_flag_value( $flag, $default = null ) {
