@@ -13,7 +13,7 @@ WP_CLI::add_command( 'backup', 'Backup_Command' );
 /**
  * Perform backups of the database with reduced data sets
  */
-class Backup_Command extends WP_CLI_Command {
+class Backup_Command extends WP_LMaker_CLI_Command_Base {
 
 	protected static $tables_info = null;
 
