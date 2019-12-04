@@ -130,7 +130,7 @@ class Backup_Command extends WP_CLI_Command {
 
 		$db_only = WP_CLI\Utils\get_flag_value( $assoc_args, 'db-only', false );
 		if ( $db_only ) {
-			self::maybe_zip_file( $db_file, $result_file );
+			self::maybe_zip_file( $db_file, $result_file, basename( self::get_db_file_path_target() ) );
 		} else {
 			self::maybe_zip_folder( ABSPATH, $result_file );
 		}
@@ -171,6 +171,10 @@ class Backup_Command extends WP_CLI_Command {
 	}
 
 	protected static function get_db_file_path() {
+		return self::get_temp_filename( 'result-dump' );
+	}
+
+	protected static function get_db_file_path_target() {
 		$upload_dir = wp_get_upload_dir();
 		$path       = untrailingslashit( $upload_dir['basedir'] );
 		return $path . '/database.sql';
@@ -644,14 +648,16 @@ class Backup_Command extends WP_CLI_Command {
 		}
 		self::$new_domain     = self::$old_domain = false; // phpcs:ignore Squiz.PHP.DisallowMultipleAssignments
 		self::$exported_files = array();
-		@unlink( self::get_db_file_path() );
 	}
 
-	protected static function maybe_zip_file( $file, $zip_fn ) {
+	protected static function maybe_zip_file( $file, $zip_fn, $filename = '' ) {
 		// Initialize archive object
 		$zip = new ZipArchive();
+		if ( empty( $filename ) ) {
+			$filename = basename( $file );
+		}
 		$zip->open( $zip_fn, ZipArchive::CREATE | ZipArchive::OVERWRITE );
-		$zip->addFile( $file, basename( $file ) );
+		$zip->addFile( $file, $filename );
 		$zip->close();
 		return $zip_fn;
 	}
