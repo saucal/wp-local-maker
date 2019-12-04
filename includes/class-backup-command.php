@@ -60,72 +60,27 @@ class Backup_Command extends WP_CLI_Command {
 	 * : The name of the SQL file to export. If '-', then outputs to STDOUT. If
 	 * omitted, it will be '{dbname}-{Y-m-d}-{random-hash}.sql'.
 	 *
-	 * [--dbuser=<value>]
-	 * : Username to pass to mysqldump. Defaults to DB_USER.
+	 * [--new-domain=<domain>]
+	 * : Domain to replace on the backup. For easy of setup in a local environment.
 	 *
-	 * [--dbpass=<value>]
-	 * : Password to pass to mysqldump. Defaults to DB_PASSWORD.
+	 * [--db-only]
+	 * : Only export database dump.
 	 *
-	 * [--<field>=<value>]
-	 * : Extra arguments to pass to mysqldump.
+	 * [--v]
+	 * : Verbosity 1.
 	 *
-	 * [--tables=<tables>]
-	 * : The comma separated list of specific tables to export. Excluding this parameter will export all tables in the database.
+	 * [--vv]
+	 * : Verbosity 2.
 	 *
-	 * [--exclude_tables=<tables>]
-	 * : The comma separated list of specific tables that should be skipped from exporting. Excluding this parameter will export all tables in the database.
+	 * [--vvv]
+	 * : Verbosity 3.
 	 *
-	 * [--porcelain]
-	 * : Output filename for the exported database.
+	 * [--vvvv]
+	 * : Verbosity 4.
 	 *
-	 * ## EXAMPLES
+	 * [--vvvv]
+	 * : Verbosity 5.
 	 *
-	 *     # Export database with drop query included
-	 *     $ wp db export --add-drop-table
-	 *     Success: Exported to 'wordpress_dbase-db72bb5.sql'.
-	 *
-	 *     # Export certain tables
-	 *     $ wp db export --tables=wp_options,wp_users
-	 *     Success: Exported to 'wordpress_dbase-db72bb5.sql'.
-	 *
-	 *     # Export all tables matching a wildcard
-	 *     $ wp db export --tables=$(wp db tables 'wp_user*' --format=csv)
-	 *     Success: Exported to 'wordpress_dbase-db72bb5.sql'.
-	 *
-	 *     # Export all tables matching prefix
-	 *     $ wp db export --tables=$(wp db tables --all-tables-with-prefix --format=csv)
-	 *     Success: Exported to 'wordpress_dbase-db72bb5.sql'.
-	 *
-	 *     # Export certain posts without create table statements
-	 *     $ wp db export --no-create-info=true --tables=wp_posts --where="ID in (100,101,102)"
-	 *     Success: Exported to 'wordpress_dbase-db72bb5.sql'.
-	 *
-	 *     # Export relating meta for certain posts without create table statements
-	 *     $ wp db export --no-create-info=true --tables=wp_postmeta --where="post_id in (100,101,102)"
-	 *     Success: Exported to 'wordpress_dbase-db72bb5.sql'.
-	 *
-	 *     # Skip certain tables from the exported database
-	 *     $ wp db export --exclude_tables=wp_options,wp_users
-	 *     Success: Exported to 'wordpress_dbase-db72bb5.sql'.
-	 *
-	 *     # Skip all tables matching a wildcard from the exported database
-	 *     $ wp db export --exclude_tables=$(wp db tables 'wp_user*' --format=csv)
-	 *     Success: Exported to 'wordpress_dbase-db72bb5.sql'.
-	 *
-	 *     # Skip all tables matching prefix from the exported database
-	 *     $ wp db export --exclude_tables=$(wp db tables --all-tables-with-prefix --format=csv)
-	 *     Success: Exported to 'wordpress_dbase-db72bb5.sql'.
-	 *
-	 *     # Export database to STDOUT.
-	 *     $ wp db export -
-	 *     -- MySQL dump 10.13  Distrib 5.7.19, for osx10.12 (x86_64)
-	 *     --
-	 *     -- Host: localhost    Database: wpdev
-	 *     -- ------------------------------------------------------
-	 *     -- Server version    5.7.19
-	 *     ...
-	 *
-	 * @alias dump
 	 */
 	public function export( $args, $assoc_args ) {
 
