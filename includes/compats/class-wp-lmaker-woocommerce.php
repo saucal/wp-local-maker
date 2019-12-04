@@ -135,11 +135,11 @@ class WP_LMaker_WooCommerce extends WP_LMaker_Abstract_Addon {
 		$current = $tables_info['posts']['currname'];
 		$temp    = $tables_info['posts']['tempname'];
 
-		$curr_oi = $tables_info['woocommerce_order_items']['currname'];
+		$curr_oi  = $tables_info['woocommerce_order_items']['currname'];
 		$curr_oim = $tables_info['woocommerce_order_itemmeta']['currname'];
 
 		$table_exists = $wpdb->get_col( "SHOW TABLES LIKE '{$curr_oi}'" );
-		if( count( $table_exists ) ) {
+		if ( count( $table_exists ) ) {
 			// Handle products related to copied orders
 			$wpdb->query(
 				"CREATE TEMPORARY TABLE wp_related_products_temp 
@@ -157,7 +157,7 @@ class WP_LMaker_WooCommerce extends WP_LMaker_Abstract_Addon {
 				AND p.post_type IN ( 'product' ) AND p.ID IN ( SELECT * FROM wp_related_products_temp )"
 			);
 
-			$wpdb->query( "DROP TABLE wp_related_products_temp " ); 
+			$wpdb->query( 'DROP TABLE wp_related_products_temp ' ); 
 		}
 
 		$limit = Backup_Command::get_limit_for_tag( 'products', 9999999999 );

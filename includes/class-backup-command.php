@@ -157,15 +157,15 @@ class Backup_Command extends WP_CLI_Command {
 
 		$db_file = self::join_files( $files );
 
-		if ( Backup_Command::verbosity_is( 2 ) ) {
+		if ( self::verbosity_is( 2 ) ) {
 			WP_CLI::line( sprintf( 'SQL dump is %s (uncompressed).', size_format( filesize( $db_file ) ) ) );
 		}
 
-		if ( Backup_Command::verbosity_is( 3 ) ) {
+		if ( self::verbosity_is( 3 ) ) {
 			arsort( self::$exported_files, SORT_NUMERIC );
 			$top = array_slice( self::$exported_files, 0, 20, true );
 			WP_CLI::line( 'Largest tables exported' );
-			foreach( $top as $table => $size ) {
+			foreach ( $top as $table => $size ) {
 				WP_CLI::line( sprintf( '  %s export is %s.', $table, size_format( $size ) ) );
 			}
 		}
@@ -192,10 +192,10 @@ class Backup_Command extends WP_CLI_Command {
 	}
 
 	public static function get_verbosity_level() {
-		for( $i = 1; $i <= 5; $i ++ ) {
-			$flag = str_repeat('v', $i);
+		for ( $i = 1; $i <= 5; $i ++ ) {
+			$flag      = str_repeat( 'v', $i );
 			$candidate = self::get_flag_value( $flag, false );
-			if( false !== $candidate ) {
+			if ( false !== $candidate ) {
 				return $i;
 			}
 		}
@@ -205,10 +205,10 @@ class Backup_Command extends WP_CLI_Command {
 
 	public static function get_limit_for_tag( $tag, $default = null ) {
 		$limit = self::get_flag_value( 'limit-' . $tag, false );
-		if( false !== $limit ) {
+		if ( false !== $limit ) {
 			return intval( $limit );
 		}
-		$limit = apply_filters( 'wp_local_maker_limit_' . $tag , $default );
+		$limit = apply_filters( 'wp_local_maker_limit_' . $tag, $default );
 		return intval( $limit );
 	}
 
@@ -227,7 +227,7 @@ class Backup_Command extends WP_CLI_Command {
 	}
 
 	public static function dump_structure() {
-		if( Backup_Command::verbosity_is( 2 ) ) {
+		if ( self::verbosity_is( 2 ) ) {
 			WP_CLI::line( 'Exporting database structure (all tables).' );
 		}
 
@@ -249,7 +249,7 @@ class Backup_Command extends WP_CLI_Command {
 
 		$first_pass = self::adjust_structure( $first_pass );
 
-		if( Backup_Command::verbosity_is( 1 ) ) {
+		if ( self::verbosity_is( 1 ) ) {
 			WP_CLI::line( sprintf( 'Exported database structure (all tables). Export size: %s', size_format( filesize( $first_pass ) ) ) );
 		}
 
@@ -463,8 +463,8 @@ class Backup_Command extends WP_CLI_Command {
 		}
 
 		$original_table_name = $replace_name ? $replace_name : $table;
-		$export_size = filesize( $file );
-		if( Backup_Command::verbosity_is( 1 ) ) {
+		$export_size         = filesize( $file );
+		if ( self::verbosity_is( 1 ) ) {
 			WP_CLI::line( sprintf( 'Exported %d rows from %s. Export size: %s', $wpdb->get_var( "SELECT COUNT(*) FROM {$table}" ), $original_table_name, size_format( $export_size ) ) );
 		}
 
@@ -676,15 +676,15 @@ class Backup_Command extends WP_CLI_Command {
 		global $wpdb;
 		$tables = $wpdb->get_col( "SHOW TABLES LIKE '_WPLM%'" );
 		foreach ( $tables as $table ) {
-			if( Backup_Command::verbosity_is( 5 ) ) {
+			if ( self::verbosity_is( 5 ) ) {
 				WP_CLI::line( "Removing temporary table {$table}." );
 			}
 			$wpdb->query( "DROP TABLE IF EXISTS {$table}" );
-			if( Backup_Command::verbosity_is( 4 ) ) {
+			if ( self::verbosity_is( 4 ) ) {
 				WP_CLI::line( "Removed temporary table {$table}." );
 			}
 		}
-		self::$new_domain = self::$old_domain = false; // phpcs:ignore Squiz.PHP.DisallowMultipleAssignments
+		self::$new_domain     = self::$old_domain = false; // phpcs:ignore Squiz.PHP.DisallowMultipleAssignments
 		self::$exported_files = array();
 		@unlink( self::get_db_file_path() );
 	}
@@ -758,13 +758,6 @@ class Backup_Command extends WP_CLI_Command {
 		}
 
 		do_action( 'wp_local_maker_before_closing_zip', $zip );
-
-		/* if( $total_size > 50 * MB_IN_BYTES ) {
-			return new WP_Error("too_large", "Folder is too large to compress");
-		}*/
-
-		// $object_data = $this->parse_addon_data( $object['info'] );
-		// $zip->setArchiveComment( $object_data );
 
 		// Zip archive will be created only after closing object
 		$zip->close();
