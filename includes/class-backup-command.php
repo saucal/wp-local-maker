@@ -48,6 +48,8 @@ class Backup_Command extends WP_CLI_Command {
 
 	protected static $exported_files = array();
 
+	protected static $hash = '';
+
 	/**
 	 * Exports the database to a file or to STDOUT.
 	 *
@@ -88,11 +90,12 @@ class Backup_Command extends WP_CLI_Command {
 
 		self::$current_assoc_args = $assoc_args;
 
+		self::$hash = wp_generate_password( 7, false );
+
 		if ( ! empty( $args[0] ) ) {
 			$result_file = $args[0];
 		} else {
-			$hash        = substr( md5( wp_rand( PHP_INT_MIN, PHP_INT_MAX ) ), 0, 7 );
-			$result_file = sprintf( 'WPLM-%s-%s-%s.zip', DB_NAME, date( 'Y-m-d-H-i-s' ), $hash );
+			$result_file = sprintf( 'WPLM-%s-%s-%s.zip', DB_NAME, date( 'Y-m-d-H-i-s' ), self::$hash );
 		}
 
 		self::cleanup(); // early cleanup, to cleanup unfinished exports.
@@ -175,7 +178,7 @@ class Backup_Command extends WP_CLI_Command {
 
 	protected static function get_temp_filename( $filename = null ) {
 		if ( $filename ) {
-			return trailingslashit( get_temp_dir() ) . $filename;
+			return trailingslashit( get_temp_dir() ) . $filename . '-' . self::$hash . '.tmp';
 		} else {
 			return wp_tempnam( 'backup_export' );
 		}
