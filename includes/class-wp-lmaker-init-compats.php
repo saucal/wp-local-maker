@@ -19,6 +19,8 @@ class WP_LMaker_Init_Compats {
 		foreach ( $compats as $compat ) {
 			require_once $compat;
 		}
+
+		do_action( 'wp_local_maker_init_compats' );
 	}
 
 }

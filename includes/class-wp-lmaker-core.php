@@ -78,6 +78,8 @@ class WP_LMaker_Core {
 			AND p.post_type NOT IN ( {$ignored_post_types} )"
 		);
 
+		$limit = Backup_Command::get_limit_for_tag( 'posts', 50 );
+
 		// Handle posts
 		$wpdb->query(
 			"REPLACE INTO {$temp}
@@ -85,7 +87,7 @@ class WP_LMaker_Core {
 			WHERE p.post_status NOT IN ('auto-draft', 'trash')
 			AND p.post_type IN ( 'post' )
 			ORDER BY p.post_date DESC
-			LIMIT 50"
+			LIMIT {$limit}"
 		);
 
 		do_action( 'wp_local_maker_posts_after_posts', $tables_info );
@@ -98,6 +100,8 @@ class WP_LMaker_Core {
 			AND p.post_type IN ( 'attachment' ) AND p.post_parent IN ( SELECT ID FROM {$temp} p2 )"
 		);
 
+		$limit = Backup_Command::get_limit_for_tag( 'attachments', 500 );
+
 		// Handle unrelated attachments
 		$wpdb->query(
 			"REPLACE INTO {$temp}
@@ -105,7 +109,7 @@ class WP_LMaker_Core {
 			WHERE p.post_status NOT IN ('auto-draft', 'trash')
 			AND p.post_type IN ( 'attachment' ) AND p.post_parent = 0
             ORDER BY p.post_date DESC
-			LIMIT 500"
+			LIMIT {$limit}"
 		);
 
 		// Loop until there's no missing parents
@@ -121,12 +125,54 @@ class WP_LMaker_Core {
 
 		$file = Backup_Command::write_table_file( $temp, $current );
 
+		if (Backup_Command::verbosity_is( 2 ) ) {
+			$columns = $wpdb->get_col( 
+				$wpdb->prepare(
+					"SELECT column_name
+					FROM information_schema.columns 
+					WHERE table_schema=%s AND table_name=%s",
+					DB_NAME,
+					$temp
+				)
+			);
+			
+			$size_col = "SUM( LENGTH( CONCAT_WS('\", \"', " . implode( ", ", $columns ). ") ) )";
+			$results = $wpdb->get_results( 
+				"SELECT post_type, COUNT(*) as num, {$size_col} as size
+				FROM {$temp} 
+				GROUP BY post_type
+				ORDER BY size DESC" );
+			foreach( $results as $row ) {
+				WP_CLI::line( sprintf( "  Including %s %s posts, which is %s of data", $row->num, $row->post_type, size_format( $row->size ) ) );
+			}
+		}
+
 		return $file;
 	}
 
 	public function process_postmeta() {
 		global $wpdb;
-		return Backup_Command::dependant_table_dump_single( 'postmeta', 'posts', 'post_id', 'ID' );
+		$result = Backup_Command::dependant_table_dump_single( 'postmeta', 'posts', 'post_id', 'ID' );
+		if (Backup_Command::verbosity_is( 2 ) ) {
+			$tables_info = Backup_Command::get_tables_names();
+			$temp_pm = $tables_info['postmeta']['tempname'];
+			$temp_p  = $tables_info['posts']['tempname'];
+			$results = $wpdb->get_results( 
+				"SELECT 
+				p.post_type, 
+				COUNT(*) as num, 
+				SUM( LENGTH( meta_value ) ) as size 
+				FROM {$temp_pm} pm 
+				LEFT JOIN {$temp_p} p ON p.ID = pm.post_id
+				GROUP BY p.post_type 
+				ORDER BY size DESC"
+			);
+			foreach( $results as $row ) {
+				WP_CLI::line( sprintf( "  Including %s meta rows related to %s posts, which is %s of data", $row->num, $row->post_type, size_format( $row->size ) ) );
+			}
+		}
+		
+		return $result;
 	}
 
 	public function process_comments() {
@@ -253,10 +299,26 @@ class WP_LMaker_Core {
 		$wpdb->query(
 			"REPLACE INTO {$temp}
 			SELECT * FROM {$current}
-			WHERE option_name NOT LIKE '\_transient%' && option_name NOT LIKE '\_site\_transient%'"
+			WHERE option_name NOT LIKE '\_transient%' AND option_name NOT LIKE '\_site\_transient%'"
 		);
 
 		$file = Backup_Command::write_table_file( $temp, $current );
+		
+		if (Backup_Command::verbosity_is( 2 ) ) {
+			$results = $wpdb->get_results( 
+				"SELECT 
+				SUBSTRING( option_name, 1, 10 ) as option_prefix, 
+				COUNT(*) as num, 
+				SUM( LENGTH( option_value ) ) as size
+				FROM {$temp} 
+				GROUP BY option_prefix 
+				ORDER BY size DESC
+				LIMIT 10"
+			);
+			foreach( $results as $row ) {
+				WP_CLI::line( sprintf( "  Including %s options prefixed %s, which is %s of data", $row->num, "'{$row->option_prefix}%'", size_format( $row->size ) ) );
+			}
+		}
 
 		return $file;
 	}

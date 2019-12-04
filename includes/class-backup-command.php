@@ -44,6 +44,10 @@ class Backup_Command extends WP_CLI_Command {
 
 	protected static $old_domain = false;
 
+	protected static $current_assoc_args = array();
+
+	protected static $exported_files = array();
+
 	/**
 	 * Exports the database to a file or to STDOUT.
 	 *
@@ -127,11 +131,13 @@ class Backup_Command extends WP_CLI_Command {
 
 		global $wpdb;
 
+		self::$current_assoc_args = $assoc_args;
+
 		if ( ! empty( $args[0] ) ) {
 			$result_file = $args[0];
 		} else {
 			$hash        = substr( md5( wp_rand( PHP_INT_MIN, PHP_INT_MAX ) ), 0, 7 );
-			$result_file = sprintf( 'WPLM-%s-%s-%s.zip', DB_NAME, date( 'Y-m-d' ), $hash );
+			$result_file = sprintf( 'WPLM-%s-%s-%s.zip', DB_NAME, date( 'Y-m-d-H-i-s' ), $hash );
 		}
 
 		self::cleanup(); // early cleanup, to cleanup unfinished exports.
@@ -151,6 +157,19 @@ class Backup_Command extends WP_CLI_Command {
 
 		$db_file = self::join_files( $files );
 
+		if ( Backup_Command::verbosity_is( 2 ) ) {
+			WP_CLI::line( sprintf( 'SQL dump is %s (uncompressed).', size_format( filesize( $db_file ) ) ) );
+		}
+
+		if ( Backup_Command::verbosity_is( 3 ) ) {
+			arsort( self::$exported_files, SORT_NUMERIC );
+			$top = array_slice( self::$exported_files, 0, 20, true );
+			WP_CLI::line( 'Largest tables exported' );
+			foreach( $top as $table => $size ) {
+				WP_CLI::line( sprintf( '  %s export is %s.', $table, size_format( $size ) ) );
+			}
+		}
+
 		$db_only = WP_CLI\Utils\get_flag_value( $assoc_args, 'db-only', false );
 		if ( $db_only ) {
 			self::maybe_zip_file( $db_file, $result_file );
@@ -159,8 +178,38 @@ class Backup_Command extends WP_CLI_Command {
 		}
 
 		self::cleanup();
+		self::$current_assoc_args = array();
 
 		WP_CLI::success( sprintf( "Exported to '%s'. Export size: %s", $result_file, size_format( filesize( $result_file ) ) ) );
+	}
+
+	public static function get_flag_value( $flag, $default = null ) {
+		return WP_CLI\Utils\get_flag_value( self::$current_assoc_args, $flag, $default );
+	}
+
+	public static function verbosity_is( $level ) {
+		return self::get_verbosity_level() >= $level;
+	}
+
+	public static function get_verbosity_level() {
+		for( $i = 1; $i <= 5; $i ++ ) {
+			$flag = str_repeat('v', $i);
+			$candidate = self::get_flag_value( $flag, false );
+			if( false !== $candidate ) {
+				return $i;
+			}
+		}
+
+		return 0;
+	}
+
+	public static function get_limit_for_tag( $tag, $default = null ) {
+		$limit = self::get_flag_value( 'limit-' . $tag, false );
+		if( false !== $limit ) {
+			return intval( $limit );
+		}
+		$limit = apply_filters( 'wp_local_maker_limit_' . $tag , $default );
+		return intval( $limit );
 	}
 
 	protected static function get_db_file_path() {
@@ -178,6 +227,10 @@ class Backup_Command extends WP_CLI_Command {
 	}
 
 	public static function dump_structure() {
+		if( Backup_Command::verbosity_is( 2 ) ) {
+			WP_CLI::line( 'Exporting database structure (all tables).' );
+		}
+
 		$command          = '/usr/bin/env mysqldump --no-defaults %s --single-transaction --quick';
 		$command_esc_args = array( DB_NAME );
 
@@ -195,6 +248,10 @@ class Backup_Command extends WP_CLI_Command {
 		);
 
 		$first_pass = self::adjust_structure( $first_pass );
+
+		if( Backup_Command::verbosity_is( 1 ) ) {
+			WP_CLI::line( sprintf( 'Exported database structure (all tables). Export size: %s', size_format( filesize( $first_pass ) ) ) );
+		}
 
 		return $first_pass;
 	}
@@ -227,6 +284,7 @@ class Backup_Command extends WP_CLI_Command {
 		$command_esc_args = array( DB_NAME );
 
 		$command .= ' --no-create-info';
+		$command .= ' --complete-insert';
 
 		$command           .= ' --tables';
 		$command           .= ' %s';
@@ -306,6 +364,10 @@ class Backup_Command extends WP_CLI_Command {
 		return array( $internal_key, $blog_id, $prefixed );
 	}
 
+	public static function get_table_temp_name( $table ) {
+		return '_WPLM_' . wp_hash( $table, 'nonce' );
+	}
+
 	public static function get_table_name( $table, $key = 'curr' ) {
 		global $wpdb;
 
@@ -329,7 +391,7 @@ class Backup_Command extends WP_CLI_Command {
 		}
 
 		if ( 'temp' === $key ) {
-			return '_WPLM_' . wp_hash( $table, 'nonce' );
+			return self::get_table_temp_name( $table );
 		} else {
 			return $table;
 		}
@@ -400,7 +462,13 @@ class Backup_Command extends WP_CLI_Command {
 			$file = self::adjust_file( $file, "`{$table}`", "`{$replace_name}`" );
 		}
 
-		WP_CLI::line( sprintf( 'Exported %d rows from %s. Export size: %s', $wpdb->get_var( "SELECT COUNT(*) FROM {$table}" ), $replace_name ? $replace_name : $table, size_format( filesize( $file ) ) ) );
+		$original_table_name = $replace_name ? $replace_name : $table;
+		$export_size = filesize( $file );
+		if( Backup_Command::verbosity_is( 1 ) ) {
+			WP_CLI::line( sprintf( 'Exported %d rows from %s. Export size: %s', $wpdb->get_var( "SELECT COUNT(*) FROM {$table}" ), $original_table_name, size_format( $export_size ) ) );
+		}
+
+		self::$exported_files[ $original_table_name ] = $export_size;
 
 		return $file;
 	}
@@ -480,7 +548,7 @@ class Backup_Command extends WP_CLI_Command {
 
 			if ( ! isset( $tables_info[ $internal_key ] ) ) {
 				$current = $table;
-				$temp    = self::get_table_name( $current, 'temp' );
+				$temp    = self::get_table_temp_name( $current );
 
 				$wpdb->query( "CREATE TABLE IF NOT EXISTS {$temp} LIKE {$current}" );
 				$query = "REPLACE INTO {$temp} SELECT * FROM {$current}";
@@ -608,9 +676,16 @@ class Backup_Command extends WP_CLI_Command {
 		global $wpdb;
 		$tables = $wpdb->get_col( "SHOW TABLES LIKE '_WPLM%'" );
 		foreach ( $tables as $table ) {
+			if( Backup_Command::verbosity_is( 5 ) ) {
+				WP_CLI::line( "Removing temporary table {$table}." );
+			}
 			$wpdb->query( "DROP TABLE IF EXISTS {$table}" );
+			if( Backup_Command::verbosity_is( 4 ) ) {
+				WP_CLI::line( "Removed temporary table {$table}." );
+			}
 		}
 		self::$new_domain = self::$old_domain = false; // phpcs:ignore Squiz.PHP.DisallowMultipleAssignments
+		self::$exported_files = array();
 		@unlink( self::get_db_file_path() );
 	}
 

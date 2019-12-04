@@ -77,6 +77,8 @@ class WP_LMaker_WooCommerce extends WP_LMaker_Abstract_Addon {
 		$current = $tables_info['posts']['currname'];
 		$temp    = $tables_info['posts']['tempname'];
 
+		$limit = Backup_Command::get_limit_for_tag( 'orders', 50 );
+
 		// Handle orders
 		$wpdb->query(
 			"REPLACE INTO {$temp}
@@ -84,7 +86,7 @@ class WP_LMaker_WooCommerce extends WP_LMaker_Abstract_Addon {
 			WHERE p.post_status NOT IN ('auto-draft', 'trash')
 			AND p.post_type IN ( 'shop_order' )
 			ORDER BY p.post_date DESC
-			LIMIT 50"
+			LIMIT {$limit}"
 		);
 
 		do_action( 'wp_local_maker_orders_after_orders', $tables_info );
@@ -133,12 +135,40 @@ class WP_LMaker_WooCommerce extends WP_LMaker_Abstract_Addon {
 		$current = $tables_info['posts']['currname'];
 		$temp    = $tables_info['posts']['tempname'];
 
+		$curr_oi = $tables_info['woocommerce_order_items']['currname'];
+		$curr_oim = $tables_info['woocommerce_order_itemmeta']['currname'];
+
+		$table_exists = $wpdb->get_col( "SHOW TABLES LIKE '{$curr_oi}'" );
+		if( count( $table_exists ) ) {
+			// Handle products related to copied orders
+			$wpdb->query(
+				"CREATE TEMPORARY TABLE wp_related_products_temp 
+				SELECT oim.meta_value as product_id FROM {$curr_oim} oim
+				INNER JOIN {$curr_oi} oi ON oi.order_item_id = oim.order_item_id
+				WHERE oi.order_id IN ( SELECT ID FROM {$temp} WHERE post_type = 'shop_order' ) 
+				AND oim.meta_key = '_product_id'
+				GROUP BY product_id"
+			);
+			
+			$wpdb->query( 
+				"REPLACE INTO {$temp}
+				SELECT * FROM {$current} p
+				WHERE p.post_status NOT IN ('auto-draft', 'trash')
+				AND p.post_type IN ( 'product' ) AND p.ID IN ( SELECT * FROM wp_related_products_temp )"
+			);
+
+			$wpdb->query( "DROP TABLE wp_related_products_temp " ); 
+		}
+
+		$limit = Backup_Command::get_limit_for_tag( 'products', 9999999999 );
+
 		// Handle products
 		$wpdb->query(
 			"REPLACE INTO {$temp}
 			SELECT * FROM {$current} p
 			WHERE p.post_status NOT IN ('auto-draft', 'trash')
-			AND p.post_type IN ( 'product' )"
+			AND p.post_type IN ( 'product' )
+			LIMIT {$limit}"
 		);
 	}
 
