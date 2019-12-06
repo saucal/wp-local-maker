@@ -148,6 +148,7 @@ class Backup_Command extends WP_CLI_Command {
 		switch ( $method ) {
 			case 'fs':
 				$target_file = $target_folder . '/' . $result_file;
+				wp_mkdir_p( dirname( $target_file ) );
 				rename( $result_file_tmp, $target_file );
 				WP_CLI::success( sprintf( "Exported to '%s'. Export size: %s", $result_file, $size ) );
 				break;
