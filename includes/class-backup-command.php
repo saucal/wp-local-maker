@@ -104,7 +104,7 @@ class Backup_Command extends WP_CLI_Command {
 
 		$target_folder   = untrailingslashit( ABSPATH );
 		$target_url_base = untrailingslashit( site_url( '' ) );
-		$method        = 'fs';
+		$method          = 'fs';
 
 		$replace = WP_CLI\Utils\get_flag_value( $assoc_args, 'new-domain', false );
 		if ( $replace ) {
