@@ -98,6 +98,12 @@ class Backup_Command extends WP_LMaker_CLI_Command_Base {
 		$target_folder   = untrailingslashit( ABSPATH );
 		$target_url_base = untrailingslashit( site_url( '' ) );
 		$method          = 'fs';
+		if ( defined( 'VIP_GO_ENV' ) ) {
+			WP_CLI::line( 'VIP GO Environment detected. Forcing db-only mode.' );
+			$db_only         = true;
+			$target_folder   = self::get_uploads_folder_path( 'wplm' );
+			$target_url_base = self::get_uploads_folder_url( 'wplm' );
+		}
 
 		$replace = WP_CLI\Utils\get_flag_value( $assoc_args, 'new-domain', false );
 		if ( $replace ) {
