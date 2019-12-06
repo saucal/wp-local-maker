@@ -101,8 +101,9 @@ class Backup_Command extends WP_CLI_Command {
 		self::cleanup(); // early cleanup, to cleanup unfinished exports.
 
 		$db_only = WP_CLI\Utils\get_flag_value( $assoc_args, 'db-only', false );
-		
-		$target_folder = getcwd();
+
+		$target_folder   = untrailingslashit( ABSPATH );
+		$target_url_base = untrailingslashit( site_url( '' ) );
 		$method        = 'fs';
 
 		$replace = WP_CLI\Utils\get_flag_value( $assoc_args, 'new-domain', false );
@@ -150,7 +151,9 @@ class Backup_Command extends WP_CLI_Command {
 				$target_file = $target_folder . '/' . $result_file;
 				wp_mkdir_p( dirname( $target_file ) );
 				rename( $result_file_tmp, $target_file );
-				WP_CLI::success( sprintf( "Exported to '%s'. Export size: %s", $result_file, $size ) );
+				$result_file_url = $target_url_base . '/' . $result_file;
+				WP_CLI::line( sprintf( "Exported to '%s'. Export size: %s.", $result_file, $size ) );
+				WP_CLI::line( sprintf( 'You can download here: %s', $result_file_url ) );
 				break;
 		}
 	}
@@ -188,10 +191,20 @@ class Backup_Command extends WP_CLI_Command {
 		return self::get_temp_filename( 'result-dump' );
 	}
 
-	protected static function get_db_file_path_target() {
+	protected static function get_uploads_folder_path( $desired_path ) {
 		$upload_dir = wp_get_upload_dir();
-		$path       = untrailingslashit( $upload_dir['basedir'] );
-		return $path . '/database.sql';
+		$basedir    = untrailingslashit( $upload_dir['basedir'] );
+		return $basedir . '/' . $desired_path;
+	}
+
+	protected static function get_uploads_folder_url( $desired_path ) {
+		$upload_dir = wp_get_upload_dir();
+		$basedir    = untrailingslashit( $upload_dir['baseurl'] );
+		return $basedir . '/' . $desired_path;
+	}
+
+	protected static function get_db_file_path_target() {
+		return self::get_uploads_folder_path( 'database.sql' );
 	}
 
 	protected static function get_temp_filename( $filename = null ) {
