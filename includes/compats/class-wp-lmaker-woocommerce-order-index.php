@@ -17,13 +17,11 @@ class WP_LMaker_WooCommerce_Order_Index extends WP_LMaker_Abstract_Addon {
 	}
 
 	public function enqueue_process_customer_order_index( $tables ) {
-		global $wpdb;
 		$tables['woocommerce_customer_order_index'] = array( $this, 'process_customer_order_index' );
 		return $tables;
 	}
 
 	public function process_customer_order_index() {
-		global $wpdb;
 		return Backup_Command::dependant_table_dump_single( 'woocommerce_customer_order_index', 'posts', 'order_id', 'ID' );
 	}
 }

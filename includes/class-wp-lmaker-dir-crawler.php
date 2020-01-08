@@ -45,7 +45,7 @@ class WP_LMaker_Dir_Crawler {
 
 		$warnings = array( 200, 500, 1000, 2000 );
 
-		foreach ( $files as $name => $file ) {
+		foreach ( $files as $file ) {
 			if ( 100 === self::$count ) {
 				self::$count = 0;
 				echo '.';

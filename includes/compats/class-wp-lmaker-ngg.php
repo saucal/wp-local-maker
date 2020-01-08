@@ -18,7 +18,6 @@ class WP_LMaker_NGG extends WP_LMaker_Abstract_Addon {
 	}
 
 	public function enqueue_process_ngg( $tables ) {
-		global $wpdb;
 		if ( ! $this->is_plugin_active( 'nextgen-gallery/nggallery.php' ) ) {
 			$tables['ngg_album']    = false;
 			$tables['ngg_gallery']  = false;

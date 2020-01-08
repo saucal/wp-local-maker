@@ -17,7 +17,6 @@ class WP_LMaker_Affiliate_WP extends WP_LMaker_Abstract_Addon {
 	 * @return array|mixed
 	 */
 	public function excluded_tables( $tables ) {
-		global $wpdb;
 		$tables[] = 'affiliate_wp_visits';
 		return $tables;
 	}

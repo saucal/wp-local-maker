@@ -28,47 +28,39 @@ class WP_LMaker_WooCommerce extends WP_LMaker_Abstract_Addon {
 	}
 
 	public function enqueue_process_order_items( $tables ) {
-		global $wpdb;
 		$tables['woocommerce_order_items']    = array( $this, 'process_woocommerce_order_items' );
 		$tables['woocommerce_order_itemmeta'] = array( $this, 'process_woocommerce_order_itemmeta' );
 		return $tables;
 	}
 
 	public function enqueue_process_download_permissions( $tables ) {
-		global $wpdb;
 		$tables['woocommerce_downloadable_product_permissions'] = array( $this, 'process_woocommerce_downloadable_product_permissions' );
 		return $tables;
 	}
 
 	public function enqueue_process_payment_tokens( $tables ) {
-		global $wpdb;
 		$tables['woocommerce_payment_tokens']    = array( $this, 'process_woocommerce_payment_tokens' );
 		$tables['woocommerce_payment_tokenmeta'] = array( $this, 'process_woocommerce_payment_tokenmeta' );
 		return $tables;
 	}
 
 	public function process_woocommerce_order_items() {
-		global $wpdb;
 		return Backup_Command::dependant_table_dump_single( 'woocommerce_order_items', 'posts', 'order_id', 'ID' );
 	}
 
 	public function process_woocommerce_order_itemmeta() {
-		global $wpdb;
 		return Backup_Command::dependant_table_dump_single( 'woocommerce_order_itemmeta', 'woocommerce_order_items', 'order_item_id', 'order_item_id' );
 	}
 
 	public function process_woocommerce_downloadable_product_permissions() {
-		global $wpdb;
 		return Backup_Command::dependant_table_dump_single( 'woocommerce_downloadable_product_permissions', 'posts', 'order_id', 'ID' );
 	}
 
 	public function process_woocommerce_payment_tokens() {
-		global $wpdb;
 		return Backup_Command::dependant_table_dump_single( 'woocommerce_payment_tokens', 'users', 'user_id', 'ID' );
 	}
 
 	public function process_woocommerce_payment_tokenmeta() {
-		global $wpdb;
 		return Backup_Command::dependant_table_dump_single( 'woocommerce_payment_tokenmeta', 'woocommerce_payment_tokens', 'payment_token_id', 'token_id' );
 	}
 
@@ -191,7 +183,6 @@ class WP_LMaker_WooCommerce extends WP_LMaker_Abstract_Addon {
 	}
 
 	public function excluded_tables( $tables ) {
-		global $wpdb;
 		$tables[] = 'wc_download_log';
 		$tables[] = 'woocommerce_sessions';
 		$tables[] = 'woocommerce_log';

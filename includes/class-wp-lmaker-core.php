@@ -21,28 +21,24 @@ class WP_LMaker_Core {
 	}
 
 	public function enqueue_process_posts( $tables ) {
-		global $wpdb;
 		$tables['posts']    = array( $this, 'process_posts' );
 		$tables['postmeta'] = array( $this, 'process_postmeta' );
 		return $tables;
 	}
 
 	public function enqueue_process_comments( $tables ) {
-		global $wpdb;
 		$tables['comments']    = array( $this, 'process_comments' );
 		$tables['commentmeta'] = array( $this, 'process_commentmeta' );
 		return $tables;
 	}
 
 	public function enqueue_process_users( $tables ) {
-		global $wpdb;
 		$tables['users']    = array( $this, 'process_users' );
 		$tables['usermeta'] = array( $this, 'process_usermeta' );
 		return $tables;
 	}
 
 	public function enqueue_process_terms( $tables ) {
-		global $wpdb;
 		$tables['term_relationships'] = array( $this, 'process_term_relationships' );
 		$tables['term_taxonomy']      = array( $this, 'process_term_taxonomy' );
 		$tables['terms']              = array( $this, 'process_terms' );
@@ -51,7 +47,6 @@ class WP_LMaker_Core {
 	}
 
 	public function enqueue_process_core( $tables ) {
-		global $wpdb;
 		$tables['options'] = array( $this, 'process_options' );
 		return $tables;
 	}
@@ -177,12 +172,10 @@ class WP_LMaker_Core {
 	}
 
 	public function process_comments() {
-		global $wpdb;
 		return Backup_Command::dependant_table_dump_single( 'comments', 'posts', 'comment_post_ID', 'ID' );
 	}
 
 	public function process_commentmeta() {
-		global $wpdb;
 		return Backup_Command::dependant_table_dump_single( 'commentmeta', 'comments', 'comment_id', 'comment_ID' );
 	}
 
@@ -225,7 +218,6 @@ class WP_LMaker_Core {
 	}
 
 	public function process_usermeta() {
-		global $wpdb;
 		return Backup_Command::dependant_table_dump_single( 'usermeta', 'users', 'user_id', 'ID' );
 	}
 
@@ -274,17 +266,14 @@ class WP_LMaker_Core {
 	}
 
 	public function process_term_taxonomy() {
-		global $wpdb;
 		return Backup_Command::dependant_table_dump_single( 'term_taxonomy', 'term_relationships', 'term_taxonomy_id', 'term_taxonomy_id' );
 	}
 
 	public function process_terms() {
-		global $wpdb;
 		return Backup_Command::dependant_table_dump_single( 'terms', 'term_taxonomy', 'term_id', 'term_id' );
 	}
 
 	public function process_termmeta() {
-		global $wpdb;
 		return Backup_Command::dependant_table_dump_single( 'termmeta', 'terms', 'term_id', 'term_id' );
 	}
 

@@ -32,7 +32,6 @@ class WP_LMaker_SCR extends WP_LMaker_Abstract_Addon {
 	}
 
 	public function enqueue_process_scr( $tables ) {
-		global $wpdb;
 		$tables[ $this->config->scr_r ]  = array( $this, 'process_scr_relationships' );
 		$tables[ $this->config->scr_rm ] = array( $this, 'process_scr_relationshipmeta' );
 		return $tables;
@@ -108,7 +107,6 @@ class WP_LMaker_SCR extends WP_LMaker_Abstract_Addon {
 	}
 
 	public function process_scr_relationshipmeta() {
-		global $wpdb;
 		return Backup_Command::dependant_table_dump_single( $this->config->scr_rm, $this->config->scr_r, $this->config->scr_rm_r_key, 'rel_id' );
 	}
 }

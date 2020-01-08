@@ -15,7 +15,6 @@
 class WP_LMaker_Redirection extends WP_LMaker_Abstract_Addon {
 
 	public function excluded_tables( $tables ) {
-		global $wpdb;
 		$tables[] = 'redirection_logs';
 		$tables[] = 'redirection_404';
 		return $tables;

@@ -12,7 +12,6 @@
  */
 class WP_LMaker_Order_Generator extends WP_LMaker_Abstract_Addon {
 	public function excluded_tables( $tables ) {
-		global $wpdb;
 		$tables[] = 'fakenames';
 		return $tables;
 	}

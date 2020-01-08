@@ -14,7 +14,6 @@
 class WP_LMaker_Gravity_Forms extends WP_LMaker_Abstract_Addon {
 
 	public function excluded_tables( $tables ) {
-		global $wpdb;
 		$tables[] = 'gf_entry';
 		$tables[] = 'gf_entry_meta';
 		$tables[] = 'gf_entry_notes';

@@ -86,8 +86,6 @@ class Backup_Command extends WP_CLI_Command {
 	 */
 	public function export( $args, $assoc_args ) {
 
-		global $wpdb;
-
 		self::$current_assoc_args = $assoc_args;
 
 		self::$hash = wp_generate_password( 7, false );
@@ -246,7 +244,6 @@ class Backup_Command extends WP_CLI_Command {
 	}
 
 	public static function adjust_structure( $file ) {
-		$lines       = [];
 		$source      = fopen( $file, 'r' );
 		$target_name = self::get_temp_filename();
 		$target      = fopen( $target_name, 'w' );
@@ -287,8 +284,6 @@ class Backup_Command extends WP_CLI_Command {
 
 		@unlink( $this_table_file );
 
-		global $wpdb;
-
 		self::run(
 			$escaped_command,
 			array(
@@ -300,7 +295,6 @@ class Backup_Command extends WP_CLI_Command {
 	}
 
 	public static function get_tables_info() {
-		global $wpdb;
 		if ( isset( self::$tables_info ) ) {
 			return self::$tables_info;
 		}
@@ -368,8 +362,8 @@ class Backup_Command extends WP_CLI_Command {
 			$table_name_full = $table;
 		}
 
-		list($internal_key, $blog_id, $prefixed) = self::get_table_internal_info( $table_name_full );
-		$table                                   = $internal_key;
+		list($internal_key, , $prefixed) = self::get_table_internal_info( $table_name_full );
+		$table                           = $internal_key;
 
 		if ( $prefixed ) {
 			if ( in_array( $table, self::global_tables(), true ) ) {
@@ -388,7 +382,7 @@ class Backup_Command extends WP_CLI_Command {
 
 	public static function get_tables_names() {
 		$tables_info = self::get_tables_info();
-		foreach ( $tables_info as $table => $info ) {
+		foreach ( array_keys( $tables_info ) as $table ) {
 			$new_info              = array(
 				'currname' => self::get_table_name( $table, 'curr' ),
 				'tempname' => self::get_table_name( $table, 'temp' ),
@@ -483,7 +477,6 @@ class Backup_Command extends WP_CLI_Command {
 	}
 
 	public static function dependant_table_dump_single( $current, $dependant, $current_key, $dependant_key ) {
-		global $wpdb;
 		$tables_info = self::get_tables_names();
 		$temp_posts  = $tables_info[ $dependant ]['tempname'];
 		return self::dependant_table_dump( $current, "WHERE p.{$current_key} IN ( SELECT {$dependant_key} FROM {$temp_posts} p2 GROUP BY {$dependant_key} )" );
@@ -533,7 +526,7 @@ class Backup_Command extends WP_CLI_Command {
 
 		foreach ( $tables as $table ) {
 
-			list($internal_key, $blog_id, $prefixed) = self::get_table_internal_info( $table );
+			list($internal_key, $blog_id) = self::get_table_internal_info( $table );
 
 			if ( ! isset( $tables_info[ $internal_key ] ) ) {
 				$current = $table;
@@ -572,7 +565,7 @@ class Backup_Command extends WP_CLI_Command {
 		krsort( $process_queue, SORT_NUMERIC );
 
 		if ( ! empty( $global_queue ) ) {
-			foreach ( $process_queue as $blog_id => $queue ) {
+			foreach ( array_keys( $process_queue ) as $blog_id ) {
 				foreach ( $global_queue as $prio => $tbl_info ) {
 					$process_queue[ $blog_id ][ $prio ] = $tbl_info;
 				}
@@ -624,7 +617,6 @@ class Backup_Command extends WP_CLI_Command {
 	}
 
 	public static function adjust_file( $file, $find, $replace ) {
-		$lines       = [];
 		$source      = fopen( $file, 'r' );
 		$target_name = self::get_temp_filename();
 		$target      = fopen( $target_name, 'w' );

@@ -11,13 +11,11 @@ class WP_LMaker_Mailchimp extends WP_LMaker_Abstract_Addon {
 	}
 
 	public function enqueue_process_mcdata( $tables ) {
-		global $wpdb;
 		$tables['mcdata'] = array( $this, 'process_mcdata' );
 		return $tables;
 	}
 
 	public function process_mcdata() {
-		global $wpdb;
 		return Backup_Command::dependant_table_dump_single( 'mcdata', 'users', 'EMAIL', 'user_email' );
 	}
 
