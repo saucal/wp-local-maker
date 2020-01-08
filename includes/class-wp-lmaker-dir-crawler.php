@@ -62,14 +62,14 @@ class WP_LMaker_Dir_Crawler {
 			}
 
 			if ( ! $file->isDir() ) {
-				$this_size   = $file->getSize();
-				$total_size += $this_size;
+				$this_size         = $file->getSize();
+				self::$total_size += $this_size;
 				if ( $this_size > 2 * MB_IN_BYTES ) {
 					echo esc_html( "\nWARNING: File too big. " . $file_path . ' ' . size_format( $file->getSize() ) . ".\n" );
 				}
 			}
 
-			if ( ! empty( $warnings ) && $total_size > $warnings[0] * MB_IN_BYTES ) {
+			if ( ! empty( $warnings ) && self::$total_size > $warnings[0] * MB_IN_BYTES ) {
 				echo esc_html( "\nWARNING: " . $warnings[0] . "MB in files to be compressed.\n" );
 				array_shift( $warnings );
 			}
