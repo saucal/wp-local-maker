@@ -13,23 +13,6 @@ WP_CLI::add_command( 'backup', 'Backup_Command' );
 /**
  * Perform backups of the database with reduced data sets
  *
- * ## EXAMPLES
- *
- *     # Create a new database.
- *     $ wp db create
- *     Success: Database created.
- *
- *     # Drop an existing database.
- *     $ wp db drop --yes
- *     Success: Database dropped.
- *
- *     # Reset the current database.
- *     $ wp db reset --yes
- *     Success: Database reset.
- *
- *     # Execute a SQL query stored in a file.
- *     $ wp db query < debug.sql
- *
  * @when after_wp_config_load
  */
 class Backup_Command extends WP_CLI_Command {
@@ -51,10 +34,7 @@ class Backup_Command extends WP_CLI_Command {
 	protected static $hash = '';
 
 	/**
-	 * Exports the database to a file or to STDOUT.
-	 *
-	 * Runs `mysqldump` utility using `DB_HOST`, `DB_NAME`, `DB_USER` and
-	 * `DB_PASSWORD` database credentials specified in wp-config.php.
+	 * Exports the database and/or filesystem to a file.
 	 *
 	 * ## OPTIONS
 	 *
@@ -68,20 +48,11 @@ class Backup_Command extends WP_CLI_Command {
 	 * [--db-only]
 	 * : Only export database dump.
 	 *
-	 * [--v]
-	 * : Verbosity 1.
+	 * [--verbosity=<level>]
+	 * : Verbosity level. Shorthands available via --v, --vv, --vvv, --vvvv, --vvvvv.
 	 *
-	 * [--vv]
-	 * : Verbosity 2.
-	 *
-	 * [--vvv]
-	 * : Verbosity 3.
-	 *
-	 * [--vvvv]
-	 * : Verbosity 4.
-	 *
-	 * [--vvvv]
-	 * : Verbosity 5.
+	 * [--<field>=<value>]
+	 * : Generic parameter to avoid validation issues.
 	 *
 	 */
 	public function export( $args, $assoc_args ) {
@@ -165,6 +136,11 @@ class Backup_Command extends WP_CLI_Command {
 	}
 
 	public static function get_verbosity_level() {
+		$long_version = self::get_flag_value( 'verbosity', false );
+		if ( false !== $long_version ) {
+			return (int) $long_version;
+		}
+
 		for ( $i = 1; $i <= 5; $i ++ ) {
 			$flag      = str_repeat( 'v', $i );
 			$candidate = self::get_flag_value( $flag, false );
