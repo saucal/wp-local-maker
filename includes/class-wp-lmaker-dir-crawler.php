@@ -85,7 +85,7 @@ class WP_LMaker_Dir_Crawler {
 				);
 			}
 
-			if ( count( $path ) == 2 ) {
+			if ( count( $path ) === 2 ) {
 				$zip->addFile( $path[1], $path[0] );
 			} else {
 				$zip->addEmptyDir( $path[0] );

@@ -149,15 +149,15 @@ class WP_LMaker_WooCommerce extends WP_LMaker_Abstract_Addon {
 				AND oim.meta_key = '_product_id'
 				GROUP BY product_id"
 			);
-			
-			$wpdb->query( 
+
+			$wpdb->query(
 				"REPLACE INTO {$temp}
 				SELECT * FROM {$current} p
 				WHERE p.post_status NOT IN ('auto-draft', 'trash')
 				AND p.post_type IN ( 'product' ) AND p.ID IN ( SELECT * FROM wp_related_products_temp )"
 			);
 
-			$wpdb->query( 'DROP TABLE wp_related_products_temp ' ); 
+			$wpdb->query( 'DROP TABLE wp_related_products_temp ' );
 		}
 
 		$limit = Backup_Command::get_limit_for_tag( 'products', 9999999999 );

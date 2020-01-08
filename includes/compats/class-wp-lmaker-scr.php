@@ -23,12 +23,12 @@ class WP_LMaker_SCR extends WP_LMaker_Abstract_Addon {
 				'scr_r'        => 'scr_relationships',
 				'scr_rm'       => 'scr_relationshipmeta',
 				'scr_rm_r_key' => 'scr_relationship_id',
-			) 
+			)
 		);
 		add_filter( 'wp_local_maker_custom_process_tables', array( $this, 'enqueue_process_scr' ), 45 );
 		add_filter( 'wp_local_maker_global_tables', array( $this, 'register_global_tables' ), 45 );
 		add_filter( 'wp_local_maker_before_dump_' . $this->config->scr_r, array( $this, 'cleanup' ) );
-	
+
 	}
 
 	public function enqueue_process_scr( $tables ) {
