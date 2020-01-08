@@ -1,5 +1,8 @@
 <?xml version="1.0"?>
 <ruleset xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" name="WP-Local-Maker" xsi:noNamespaceSchemaLocation="phpcs.xsd">
+	<rule ref="WordPress-VIP-Go">
+	</rule>
+	
 	<rule ref="WordPress-Extra">
 		<exclude name="WordPress.DB.PreparedSQL"/>
 		<exclude name="WordPress.DB.DirectDatabaseQuery"/>
@@ -7,9 +10,6 @@
 		<exclude name="WordPress.WP.AlternativeFunctions.file_system_read_fclose"/>
 		<exclude name="WordPress.PHP.NoSilencedErrors"/>
 		<exclude name="Generic.PHP.NoSilencedErrors"/>
-	</rule>
-
-	<rule ref="WordPress-VIP-Go">
 	</rule>
 
 	<rule ref="PHPCompatibility"/>
