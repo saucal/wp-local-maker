@@ -2,7 +2,7 @@
 
 Ever got into a situation where downloading a full database backup of a site is just too hard on your localhost? Loading a 1+ GB sql dump into mysql is killing it's resources?
 
-Enters *WP Local Maker*, the tool that will create a copy of the database with a reduced amount of certain data types. Eg: Do you have a large WooCommerce + WooCommerce Subscriptions site? Do you really need all 300k+ orders on your local to develop the new theme redesign?
+Enters **WP Local Maker**, the tool that will create a copy of the database with a reduced amount of certain data types. Eg: Do you have a large WooCommerce + WooCommerce Subscriptions site? Do you really need all 300k+ orders on your local to develop the new theme redesign?
 
 ## How this works
 
@@ -32,4 +32,4 @@ wp backup export --help
 
 # Support Level
 
-Active: SAU/CAL is actively working on this, and we expect to continue work for the foreseeable future including keeping tested up to the most recent version of WordPress and PHP. Bug reports, feature requests, questions, and pull requests are welcome.
+**Active:** SAU/CAL is actively working on this, and we expect to continue work for the foreseeable future including keeping tested up to the most recent version of WordPress and PHP. Bug reports, feature requests, questions, and pull requests are welcome.
