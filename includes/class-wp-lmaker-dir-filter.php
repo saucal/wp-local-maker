@@ -11,7 +11,7 @@ class WP_LMaker_Dir_Filter extends RecursiveFilterIterator {
 		foreach ( $this->exclude as $pattern ) {
 			$pattern = str_replace( '.', '\.', $pattern );
 			$pattern = str_replace( '*', '.*?', $pattern );
-			$match   = preg_match( '/^' . $pattern . '$/i', $file, $matches );
+			preg_match( '/^' . $pattern . '$/i', $file, $matches );
 			if ( ! empty( $matches ) ) {
 				return false; // is excluded
 			}

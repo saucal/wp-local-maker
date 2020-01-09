@@ -28,47 +28,39 @@ class WP_LMaker_WooCommerce extends WP_LMaker_Abstract_Addon {
 	}
 
 	public function enqueue_process_order_items( $tables ) {
-		global $wpdb;
 		$tables['woocommerce_order_items']    = array( $this, 'process_woocommerce_order_items' );
 		$tables['woocommerce_order_itemmeta'] = array( $this, 'process_woocommerce_order_itemmeta' );
 		return $tables;
 	}
 
 	public function enqueue_process_download_permissions( $tables ) {
-		global $wpdb;
 		$tables['woocommerce_downloadable_product_permissions'] = array( $this, 'process_woocommerce_downloadable_product_permissions' );
 		return $tables;
 	}
 
 	public function enqueue_process_payment_tokens( $tables ) {
-		global $wpdb;
 		$tables['woocommerce_payment_tokens']    = array( $this, 'process_woocommerce_payment_tokens' );
 		$tables['woocommerce_payment_tokenmeta'] = array( $this, 'process_woocommerce_payment_tokenmeta' );
 		return $tables;
 	}
 
 	public function process_woocommerce_order_items() {
-		global $wpdb;
 		return Backup_Command::dependant_table_dump_single( 'woocommerce_order_items', 'posts', 'order_id', 'ID' );
 	}
 
 	public function process_woocommerce_order_itemmeta() {
-		global $wpdb;
 		return Backup_Command::dependant_table_dump_single( 'woocommerce_order_itemmeta', 'woocommerce_order_items', 'order_item_id', 'order_item_id' );
 	}
 
 	public function process_woocommerce_downloadable_product_permissions() {
-		global $wpdb;
 		return Backup_Command::dependant_table_dump_single( 'woocommerce_downloadable_product_permissions', 'posts', 'order_id', 'ID' );
 	}
 
 	public function process_woocommerce_payment_tokens() {
-		global $wpdb;
 		return Backup_Command::dependant_table_dump_single( 'woocommerce_payment_tokens', 'users', 'user_id', 'ID' );
 	}
 
 	public function process_woocommerce_payment_tokenmeta() {
-		global $wpdb;
 		return Backup_Command::dependant_table_dump_single( 'woocommerce_payment_tokenmeta', 'woocommerce_payment_tokens', 'payment_token_id', 'token_id' );
 	}
 
@@ -135,11 +127,11 @@ class WP_LMaker_WooCommerce extends WP_LMaker_Abstract_Addon {
 		$current = $tables_info['posts']['currname'];
 		$temp    = $tables_info['posts']['tempname'];
 
-		$curr_oi = $tables_info['woocommerce_order_items']['currname'];
+		$curr_oi  = $tables_info['woocommerce_order_items']['currname'];
 		$curr_oim = $tables_info['woocommerce_order_itemmeta']['currname'];
 
 		$table_exists = $wpdb->get_col( "SHOW TABLES LIKE '{$curr_oi}'" );
-		if( count( $table_exists ) ) {
+		if ( count( $table_exists ) ) {
 			// Handle products related to copied orders
 			$wpdb->query(
 				"CREATE TEMPORARY TABLE wp_related_products_temp 
@@ -149,15 +141,15 @@ class WP_LMaker_WooCommerce extends WP_LMaker_Abstract_Addon {
 				AND oim.meta_key = '_product_id'
 				GROUP BY product_id"
 			);
-			
-			$wpdb->query( 
+
+			$wpdb->query(
 				"REPLACE INTO {$temp}
 				SELECT * FROM {$current} p
 				WHERE p.post_status NOT IN ('auto-draft', 'trash')
 				AND p.post_type IN ( 'product' ) AND p.ID IN ( SELECT * FROM wp_related_products_temp )"
 			);
 
-			$wpdb->query( "DROP TABLE wp_related_products_temp " ); 
+			$wpdb->query( 'DROP TABLE wp_related_products_temp ' );
 		}
 
 		$limit = Backup_Command::get_limit_for_tag( 'products', 9999999999 );
@@ -191,7 +183,6 @@ class WP_LMaker_WooCommerce extends WP_LMaker_Abstract_Addon {
 	}
 
 	public function excluded_tables( $tables ) {
-		global $wpdb;
 		$tables[] = 'wc_download_log';
 		$tables[] = 'woocommerce_sessions';
 		$tables[] = 'woocommerce_log';

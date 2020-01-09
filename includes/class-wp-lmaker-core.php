@@ -21,28 +21,24 @@ class WP_LMaker_Core {
 	}
 
 	public function enqueue_process_posts( $tables ) {
-		global $wpdb;
 		$tables['posts']    = array( $this, 'process_posts' );
 		$tables['postmeta'] = array( $this, 'process_postmeta' );
 		return $tables;
 	}
 
 	public function enqueue_process_comments( $tables ) {
-		global $wpdb;
 		$tables['comments']    = array( $this, 'process_comments' );
 		$tables['commentmeta'] = array( $this, 'process_commentmeta' );
 		return $tables;
 	}
 
 	public function enqueue_process_users( $tables ) {
-		global $wpdb;
 		$tables['users']    = array( $this, 'process_users' );
 		$tables['usermeta'] = array( $this, 'process_usermeta' );
 		return $tables;
 	}
 
 	public function enqueue_process_terms( $tables ) {
-		global $wpdb;
 		$tables['term_relationships'] = array( $this, 'process_term_relationships' );
 		$tables['term_taxonomy']      = array( $this, 'process_term_taxonomy' );
 		$tables['terms']              = array( $this, 'process_terms' );
@@ -51,7 +47,6 @@ class WP_LMaker_Core {
 	}
 
 	public function enqueue_process_core( $tables ) {
-		global $wpdb;
 		$tables['options'] = array( $this, 'process_options' );
 		return $tables;
 	}
@@ -125,25 +120,26 @@ class WP_LMaker_Core {
 
 		$file = Backup_Command::write_table_file( $temp, $current );
 
-		if (Backup_Command::verbosity_is( 2 ) ) {
-			$columns = $wpdb->get_col( 
+		if ( Backup_Command::verbosity_is( 2 ) ) {
+			$columns = $wpdb->get_col(
 				$wpdb->prepare(
-					"SELECT column_name
+					'SELECT column_name
 					FROM information_schema.columns 
-					WHERE table_schema=%s AND table_name=%s",
+					WHERE table_schema=%s AND table_name=%s',
 					DB_NAME,
 					$temp
 				)
 			);
-			
-			$size_col = "SUM( LENGTH( CONCAT_WS('\", \"', " . implode( ", ", $columns ). ") ) )";
-			$results = $wpdb->get_results( 
+
+			$size_col = "SUM( LENGTH( CONCAT_WS('\", \"', " . implode( ', ', $columns ) . ') ) )';
+			$results  = $wpdb->get_results(
 				"SELECT post_type, COUNT(*) as num, {$size_col} as size
 				FROM {$temp} 
 				GROUP BY post_type
-				ORDER BY size DESC" );
-			foreach( $results as $row ) {
-				WP_CLI::line( sprintf( "  Including %s %s posts, which is %s of data", $row->num, $row->post_type, size_format( $row->size ) ) );
+				ORDER BY size DESC"
+			);
+			foreach ( $results as $row ) {
+				WP_CLI::line( sprintf( '  Including %s %s posts, which is %s of data', $row->num, $row->post_type, size_format( $row->size ) ) );
 			}
 		}
 
@@ -153,11 +149,11 @@ class WP_LMaker_Core {
 	public function process_postmeta() {
 		global $wpdb;
 		$result = Backup_Command::dependant_table_dump_single( 'postmeta', 'posts', 'post_id', 'ID' );
-		if (Backup_Command::verbosity_is( 2 ) ) {
+		if ( Backup_Command::verbosity_is( 2 ) ) {
 			$tables_info = Backup_Command::get_tables_names();
-			$temp_pm = $tables_info['postmeta']['tempname'];
-			$temp_p  = $tables_info['posts']['tempname'];
-			$results = $wpdb->get_results( 
+			$temp_pm     = $tables_info['postmeta']['tempname'];
+			$temp_p      = $tables_info['posts']['tempname'];
+			$results     = $wpdb->get_results(
 				"SELECT 
 				p.post_type, 
 				COUNT(*) as num, 
@@ -167,21 +163,19 @@ class WP_LMaker_Core {
 				GROUP BY p.post_type 
 				ORDER BY size DESC"
 			);
-			foreach( $results as $row ) {
-				WP_CLI::line( sprintf( "  Including %s meta rows related to %s posts, which is %s of data", $row->num, $row->post_type, size_format( $row->size ) ) );
+			foreach ( $results as $row ) {
+				WP_CLI::line( sprintf( '  Including %s meta rows related to %s posts, which is %s of data', $row->num, $row->post_type, size_format( $row->size ) ) );
 			}
 		}
-		
+
 		return $result;
 	}
 
 	public function process_comments() {
-		global $wpdb;
 		return Backup_Command::dependant_table_dump_single( 'comments', 'posts', 'comment_post_ID', 'ID' );
 	}
 
 	public function process_commentmeta() {
-		global $wpdb;
 		return Backup_Command::dependant_table_dump_single( 'commentmeta', 'comments', 'comment_id', 'comment_ID' );
 	}
 
@@ -224,7 +218,6 @@ class WP_LMaker_Core {
 	}
 
 	public function process_usermeta() {
-		global $wpdb;
 		return Backup_Command::dependant_table_dump_single( 'usermeta', 'users', 'user_id', 'ID' );
 	}
 
@@ -273,17 +266,14 @@ class WP_LMaker_Core {
 	}
 
 	public function process_term_taxonomy() {
-		global $wpdb;
 		return Backup_Command::dependant_table_dump_single( 'term_taxonomy', 'term_relationships', 'term_taxonomy_id', 'term_taxonomy_id' );
 	}
 
 	public function process_terms() {
-		global $wpdb;
 		return Backup_Command::dependant_table_dump_single( 'terms', 'term_taxonomy', 'term_id', 'term_id' );
 	}
 
 	public function process_termmeta() {
-		global $wpdb;
 		return Backup_Command::dependant_table_dump_single( 'termmeta', 'terms', 'term_id', 'term_id' );
 	}
 
@@ -303,9 +293,9 @@ class WP_LMaker_Core {
 		);
 
 		$file = Backup_Command::write_table_file( $temp, $current );
-		
-		if (Backup_Command::verbosity_is( 2 ) ) {
-			$results = $wpdb->get_results( 
+
+		if ( Backup_Command::verbosity_is( 2 ) ) {
+			$results = $wpdb->get_results(
 				"SELECT 
 				SUBSTRING( option_name, 1, 10 ) as option_prefix, 
 				COUNT(*) as num, 
@@ -315,8 +305,8 @@ class WP_LMaker_Core {
 				ORDER BY size DESC
 				LIMIT 10"
 			);
-			foreach( $results as $row ) {
-				WP_CLI::line( sprintf( "  Including %s options prefixed %s, which is %s of data", $row->num, "'{$row->option_prefix}%'", size_format( $row->size ) ) );
+			foreach ( $results as $row ) {
+				WP_CLI::line( sprintf( '  Including %s options prefixed %s, which is %s of data', $row->num, "'{$row->option_prefix}%'", size_format( $row->size ) ) );
 			}
 		}
 

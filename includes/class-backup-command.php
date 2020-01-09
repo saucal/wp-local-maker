@@ -13,23 +13,6 @@ WP_CLI::add_command( 'backup', 'Backup_Command' );
 /**
  * Perform backups of the database with reduced data sets
  *
- * ## EXAMPLES
- *
- *     # Create a new database.
- *     $ wp db create
- *     Success: Database created.
- *
- *     # Drop an existing database.
- *     $ wp db drop --yes
- *     Success: Database dropped.
- *
- *     # Reset the current database.
- *     $ wp db reset --yes
- *     Success: Database reset.
- *
- *     # Execute a SQL query stored in a file.
- *     $ wp db query < debug.sql
- *
  * @when after_wp_config_load
  */
 class Backup_Command extends WP_CLI_Command {
@@ -48,11 +31,10 @@ class Backup_Command extends WP_CLI_Command {
 
 	protected static $exported_files = array();
 
+	protected static $hash = '';
+
 	/**
-	 * Exports the database to a file or to STDOUT.
-	 *
-	 * Runs `mysqldump` utility using `DB_HOST`, `DB_NAME`, `DB_USER` and
-	 * `DB_PASSWORD` database credentials specified in wp-config.php.
+	 * Exports the database and/or filesystem to a file.
 	 *
 	 * ## OPTIONS
 	 *
@@ -60,87 +42,38 @@ class Backup_Command extends WP_CLI_Command {
 	 * : The name of the SQL file to export. If '-', then outputs to STDOUT. If
 	 * omitted, it will be '{dbname}-{Y-m-d}-{random-hash}.sql'.
 	 *
-	 * [--dbuser=<value>]
-	 * : Username to pass to mysqldump. Defaults to DB_USER.
+	 * [--new-domain=<domain>]
+	 * : Domain to replace on the backup. For easy of setup in a local environment.
 	 *
-	 * [--dbpass=<value>]
-	 * : Password to pass to mysqldump. Defaults to DB_PASSWORD.
+	 * [--db-only]
+	 * : Only export database dump.
+	 *
+	 * [--verbosity=<level>]
+	 * : Verbosity level. Shorthands available via --v, --vv, --vvv, --vvvv, --vvvvv.
 	 *
 	 * [--<field>=<value>]
-	 * : Extra arguments to pass to mysqldump.
+	 * : Generic parameter to avoid validation issues.
 	 *
-	 * [--tables=<tables>]
-	 * : The comma separated list of specific tables to export. Excluding this parameter will export all tables in the database.
-	 *
-	 * [--exclude_tables=<tables>]
-	 * : The comma separated list of specific tables that should be skipped from exporting. Excluding this parameter will export all tables in the database.
-	 *
-	 * [--porcelain]
-	 * : Output filename for the exported database.
-	 *
-	 * ## EXAMPLES
-	 *
-	 *     # Export database with drop query included
-	 *     $ wp db export --add-drop-table
-	 *     Success: Exported to 'wordpress_dbase-db72bb5.sql'.
-	 *
-	 *     # Export certain tables
-	 *     $ wp db export --tables=wp_options,wp_users
-	 *     Success: Exported to 'wordpress_dbase-db72bb5.sql'.
-	 *
-	 *     # Export all tables matching a wildcard
-	 *     $ wp db export --tables=$(wp db tables 'wp_user*' --format=csv)
-	 *     Success: Exported to 'wordpress_dbase-db72bb5.sql'.
-	 *
-	 *     # Export all tables matching prefix
-	 *     $ wp db export --tables=$(wp db tables --all-tables-with-prefix --format=csv)
-	 *     Success: Exported to 'wordpress_dbase-db72bb5.sql'.
-	 *
-	 *     # Export certain posts without create table statements
-	 *     $ wp db export --no-create-info=true --tables=wp_posts --where="ID in (100,101,102)"
-	 *     Success: Exported to 'wordpress_dbase-db72bb5.sql'.
-	 *
-	 *     # Export relating meta for certain posts without create table statements
-	 *     $ wp db export --no-create-info=true --tables=wp_postmeta --where="post_id in (100,101,102)"
-	 *     Success: Exported to 'wordpress_dbase-db72bb5.sql'.
-	 *
-	 *     # Skip certain tables from the exported database
-	 *     $ wp db export --exclude_tables=wp_options,wp_users
-	 *     Success: Exported to 'wordpress_dbase-db72bb5.sql'.
-	 *
-	 *     # Skip all tables matching a wildcard from the exported database
-	 *     $ wp db export --exclude_tables=$(wp db tables 'wp_user*' --format=csv)
-	 *     Success: Exported to 'wordpress_dbase-db72bb5.sql'.
-	 *
-	 *     # Skip all tables matching prefix from the exported database
-	 *     $ wp db export --exclude_tables=$(wp db tables --all-tables-with-prefix --format=csv)
-	 *     Success: Exported to 'wordpress_dbase-db72bb5.sql'.
-	 *
-	 *     # Export database to STDOUT.
-	 *     $ wp db export -
-	 *     -- MySQL dump 10.13  Distrib 5.7.19, for osx10.12 (x86_64)
-	 *     --
-	 *     -- Host: localhost    Database: wpdev
-	 *     -- ------------------------------------------------------
-	 *     -- Server version    5.7.19
-	 *     ...
-	 *
-	 * @alias dump
 	 */
 	public function export( $args, $assoc_args ) {
 
-		global $wpdb;
-
 		self::$current_assoc_args = $assoc_args;
+
+		self::$hash = wp_generate_password( 7, false );
 
 		if ( ! empty( $args[0] ) ) {
 			$result_file = $args[0];
 		} else {
-			$hash        = substr( md5( wp_rand( PHP_INT_MIN, PHP_INT_MAX ) ), 0, 7 );
-			$result_file = sprintf( 'WPLM-%s-%s-%s.zip', DB_NAME, date( 'Y-m-d-H-i-s' ), $hash );
+			$result_file = sprintf( 'WPLM-%s-%s-%s.zip', DB_NAME, date( 'Y-m-d-H-i-s' ), self::$hash );
 		}
 
 		self::cleanup(); // early cleanup, to cleanup unfinished exports.
+
+		$db_only = WP_CLI\Utils\get_flag_value( $assoc_args, 'db-only', false );
+
+		$target_folder   = untrailingslashit( ABSPATH );
+		$target_url_base = untrailingslashit( site_url( '' ) );
+		$method          = 'fs';
 
 		$replace = WP_CLI\Utils\get_flag_value( $assoc_args, 'new-domain', false );
 		if ( $replace ) {
@@ -157,30 +90,41 @@ class Backup_Command extends WP_CLI_Command {
 
 		$db_file = self::join_files( $files );
 
-		if ( Backup_Command::verbosity_is( 2 ) ) {
+		if ( self::verbosity_is( 2 ) ) {
 			WP_CLI::line( sprintf( 'SQL dump is %s (uncompressed).', size_format( filesize( $db_file ) ) ) );
 		}
 
-		if ( Backup_Command::verbosity_is( 3 ) ) {
+		if ( self::verbosity_is( 3 ) ) {
 			arsort( self::$exported_files, SORT_NUMERIC );
 			$top = array_slice( self::$exported_files, 0, 20, true );
 			WP_CLI::line( 'Largest tables exported' );
-			foreach( $top as $table => $size ) {
+			foreach ( $top as $table => $size ) {
 				WP_CLI::line( sprintf( '  %s export is %s.', $table, size_format( $size ) ) );
 			}
 		}
 
-		$db_only = WP_CLI\Utils\get_flag_value( $assoc_args, 'db-only', false );
+		$result_file_tmp = self::get_temp_filename( 'result-file' );
 		if ( $db_only ) {
-			self::maybe_zip_file( $db_file, $result_file );
+			self::maybe_zip_file( $db_file, $result_file_tmp, basename( self::get_db_file_path_target() ) );
 		} else {
-			self::maybe_zip_folder( ABSPATH, $result_file );
+			self::maybe_zip_folder( ABSPATH, $result_file_tmp );
 		}
 
 		self::cleanup();
 		self::$current_assoc_args = array();
 
-		WP_CLI::success( sprintf( "Exported to '%s'. Export size: %s", $result_file, size_format( filesize( $result_file ) ) ) );
+		$size = size_format( filesize( $result_file_tmp ) );
+
+		switch ( $method ) {
+			case 'fs':
+				$target_file = $target_folder . '/' . $result_file;
+				wp_mkdir_p( dirname( $target_file ) );
+				rename( $result_file_tmp, $target_file );
+				$result_file_url = $target_url_base . '/' . $result_file;
+				WP_CLI::line( sprintf( "Exported to '%s'. Export size: %s.", $result_file, $size ) );
+				WP_CLI::line( sprintf( 'You can download here: %s', $result_file_url ) );
+				break;
+		}
 	}
 
 	public static function get_flag_value( $flag, $default = null ) {
@@ -192,10 +136,15 @@ class Backup_Command extends WP_CLI_Command {
 	}
 
 	public static function get_verbosity_level() {
-		for( $i = 1; $i <= 5; $i ++ ) {
-			$flag = str_repeat('v', $i);
+		$long_version = self::get_flag_value( 'verbosity', false );
+		if ( false !== $long_version ) {
+			return (int) $long_version;
+		}
+
+		for ( $i = 1; $i <= 5; $i ++ ) {
+			$flag      = str_repeat( 'v', $i );
 			$candidate = self::get_flag_value( $flag, false );
-			if( false !== $candidate ) {
+			if ( false !== $candidate ) {
 				return $i;
 			}
 		}
@@ -205,29 +154,43 @@ class Backup_Command extends WP_CLI_Command {
 
 	public static function get_limit_for_tag( $tag, $default = null ) {
 		$limit = self::get_flag_value( 'limit-' . $tag, false );
-		if( false !== $limit ) {
+		if ( false !== $limit ) {
 			return intval( $limit );
 		}
-		$limit = apply_filters( 'wp_local_maker_limit_' . $tag , $default );
+		$limit = apply_filters( 'wp_local_maker_limit_' . $tag, $default );
 		return intval( $limit );
 	}
 
 	protected static function get_db_file_path() {
+		return self::get_temp_filename( 'result-dump' );
+	}
+
+	protected static function get_uploads_folder_path( $desired_path ) {
 		$upload_dir = wp_get_upload_dir();
-		$path       = untrailingslashit( $upload_dir['basedir'] );
-		return $path . '/database.sql';
+		$basedir    = untrailingslashit( $upload_dir['basedir'] );
+		return $basedir . '/' . $desired_path;
+	}
+
+	protected static function get_uploads_folder_url( $desired_path ) {
+		$upload_dir = wp_get_upload_dir();
+		$basedir    = untrailingslashit( $upload_dir['baseurl'] );
+		return $basedir . '/' . $desired_path;
+	}
+
+	protected static function get_db_file_path_target() {
+		return self::get_uploads_folder_path( 'database.sql' );
 	}
 
 	protected static function get_temp_filename( $filename = null ) {
 		if ( $filename ) {
-			return trailingslashit( get_temp_dir() ) . $filename;
+			return trailingslashit( get_temp_dir() ) . $filename . '-' . self::$hash . '.tmp';
 		} else {
 			return wp_tempnam( 'backup_export' );
 		}
 	}
 
 	public static function dump_structure() {
-		if( Backup_Command::verbosity_is( 2 ) ) {
+		if ( self::verbosity_is( 2 ) ) {
 			WP_CLI::line( 'Exporting database structure (all tables).' );
 		}
 
@@ -249,7 +212,7 @@ class Backup_Command extends WP_CLI_Command {
 
 		$first_pass = self::adjust_structure( $first_pass );
 
-		if( Backup_Command::verbosity_is( 1 ) ) {
+		if ( self::verbosity_is( 1 ) ) {
 			WP_CLI::line( sprintf( 'Exported database structure (all tables). Export size: %s', size_format( filesize( $first_pass ) ) ) );
 		}
 
@@ -257,7 +220,6 @@ class Backup_Command extends WP_CLI_Command {
 	}
 
 	public static function adjust_structure( $file ) {
-		$lines       = [];
 		$source      = fopen( $file, 'r' );
 		$target_name = self::get_temp_filename();
 		$target      = fopen( $target_name, 'w' );
@@ -298,8 +260,6 @@ class Backup_Command extends WP_CLI_Command {
 
 		@unlink( $this_table_file );
 
-		global $wpdb;
-
 		self::run(
 			$escaped_command,
 			array(
@@ -311,7 +271,6 @@ class Backup_Command extends WP_CLI_Command {
 	}
 
 	public static function get_tables_info() {
-		global $wpdb;
 		if ( isset( self::$tables_info ) ) {
 			return self::$tables_info;
 		}
@@ -379,8 +338,8 @@ class Backup_Command extends WP_CLI_Command {
 			$table_name_full = $table;
 		}
 
-		list($internal_key, $blog_id, $prefixed) = self::get_table_internal_info( $table_name_full );
-		$table                                   = $internal_key;
+		list($internal_key, , $prefixed) = self::get_table_internal_info( $table_name_full );
+		$table                           = $internal_key;
 
 		if ( $prefixed ) {
 			if ( in_array( $table, self::global_tables(), true ) ) {
@@ -399,7 +358,7 @@ class Backup_Command extends WP_CLI_Command {
 
 	public static function get_tables_names() {
 		$tables_info = self::get_tables_info();
-		foreach ( $tables_info as $table => $info ) {
+		foreach ( array_keys( $tables_info ) as $table ) {
 			$new_info              = array(
 				'currname' => self::get_table_name( $table, 'curr' ),
 				'tempname' => self::get_table_name( $table, 'temp' ),
@@ -463,8 +422,8 @@ class Backup_Command extends WP_CLI_Command {
 		}
 
 		$original_table_name = $replace_name ? $replace_name : $table;
-		$export_size = filesize( $file );
-		if( Backup_Command::verbosity_is( 1 ) ) {
+		$export_size         = filesize( $file );
+		if ( self::verbosity_is( 1 ) ) {
 			WP_CLI::line( sprintf( 'Exported %d rows from %s. Export size: %s', $wpdb->get_var( "SELECT COUNT(*) FROM {$table}" ), $original_table_name, size_format( $export_size ) ) );
 		}
 
@@ -494,7 +453,6 @@ class Backup_Command extends WP_CLI_Command {
 	}
 
 	public static function dependant_table_dump_single( $current, $dependant, $current_key, $dependant_key ) {
-		global $wpdb;
 		$tables_info = self::get_tables_names();
 		$temp_posts  = $tables_info[ $dependant ]['tempname'];
 		return self::dependant_table_dump( $current, "WHERE p.{$current_key} IN ( SELECT {$dependant_key} FROM {$temp_posts} p2 GROUP BY {$dependant_key} )" );
@@ -544,7 +502,7 @@ class Backup_Command extends WP_CLI_Command {
 
 		foreach ( $tables as $table ) {
 
-			list($internal_key, $blog_id, $prefixed) = self::get_table_internal_info( $table );
+			list($internal_key, $blog_id) = self::get_table_internal_info( $table );
 
 			if ( ! isset( $tables_info[ $internal_key ] ) ) {
 				$current = $table;
@@ -583,7 +541,7 @@ class Backup_Command extends WP_CLI_Command {
 		krsort( $process_queue, SORT_NUMERIC );
 
 		if ( ! empty( $global_queue ) ) {
-			foreach ( $process_queue as $blog_id => $queue ) {
+			foreach ( array_keys( $process_queue ) as $blog_id ) {
 				foreach ( $global_queue as $prio => $tbl_info ) {
 					$process_queue[ $blog_id ][ $prio ] = $tbl_info;
 				}
@@ -635,7 +593,6 @@ class Backup_Command extends WP_CLI_Command {
 	}
 
 	public static function adjust_file( $file, $find, $replace ) {
-		$lines       = [];
 		$source      = fopen( $file, 'r' );
 		$target_name = self::get_temp_filename();
 		$target      = fopen( $target_name, 'w' );
@@ -676,24 +633,26 @@ class Backup_Command extends WP_CLI_Command {
 		global $wpdb;
 		$tables = $wpdb->get_col( "SHOW TABLES LIKE '_WPLM%'" );
 		foreach ( $tables as $table ) {
-			if( Backup_Command::verbosity_is( 5 ) ) {
+			if ( self::verbosity_is( 5 ) ) {
 				WP_CLI::line( "Removing temporary table {$table}." );
 			}
 			$wpdb->query( "DROP TABLE IF EXISTS {$table}" );
-			if( Backup_Command::verbosity_is( 4 ) ) {
+			if ( self::verbosity_is( 4 ) ) {
 				WP_CLI::line( "Removed temporary table {$table}." );
 			}
 		}
-		self::$new_domain = self::$old_domain = false; // phpcs:ignore Squiz.PHP.DisallowMultipleAssignments
+		self::$new_domain     = self::$old_domain = false; // phpcs:ignore Squiz.PHP.DisallowMultipleAssignments
 		self::$exported_files = array();
-		@unlink( self::get_db_file_path() );
 	}
 
-	protected static function maybe_zip_file( $file, $zip_fn ) {
+	protected static function maybe_zip_file( $file, $zip_fn, $filename = '' ) {
 		// Initialize archive object
 		$zip = new ZipArchive();
+		if ( empty( $filename ) ) {
+			$filename = basename( $file );
+		}
 		$zip->open( $zip_fn, ZipArchive::CREATE | ZipArchive::OVERWRITE );
-		$zip->addFile( $file, basename( $file ) );
+		$zip->addFile( $file, $filename );
 		$zip->close();
 		return $zip_fn;
 	}
@@ -758,13 +717,6 @@ class Backup_Command extends WP_CLI_Command {
 		}
 
 		do_action( 'wp_local_maker_before_closing_zip', $zip );
-
-		/* if( $total_size > 50 * MB_IN_BYTES ) {
-			return new WP_Error("too_large", "Folder is too large to compress");
-		}*/
-
-		// $object_data = $this->parse_addon_data( $object['info'] );
-		// $zip->setArchiveComment( $object_data );
 
 		// Zip archive will be created only after closing object
 		$zip->close();

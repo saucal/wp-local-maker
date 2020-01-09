@@ -24,7 +24,6 @@ class WP_LMaker_WooCommerce_Memberships extends WP_LMaker_Abstract_Addon {
 		global $wpdb;
 		$current = $tables_info['posts']['currname'];
 		$temp    = $tables_info['posts']['tempname'];
-		$curr_pm = $tables_info['postmeta']['currname'];
 
 		$limit = Backup_Command::get_limit_for_tag( 'memberships', 50 );
 

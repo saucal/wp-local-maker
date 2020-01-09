@@ -17,13 +17,11 @@ class WP_LMaker_EWWWIO extends WP_LMaker_Abstract_Addon {
 	}
 
 	public function enqueue_process_ewwio( $tables ) {
-		global $wpdb;
 		$tables['ewwwio_images'] = array( $this, 'process_ewwwio_images' );
 		return $tables;
 	}
 
 	public function process_ewwwio_images() {
-		global $wpdb;
 		return Backup_Command::dependant_table_dump_single( 'ewwwio_images', 'posts', 'id', 'ID' );
 	}
 }
