@@ -33,6 +33,13 @@ class Backup_Command extends WP_CLI_Command {
 
 	protected static $hash = '';
 
+	protected function init_deps() {
+		require_once __DIR__ . '/class-wp-lmaker-dir-crawler.php';
+		require_once __DIR__ . '/class-wp-lmaker-dir-filter.php';
+		require_once __DIR__ . '/class-wp-lmaker-core.php';
+		require_once __DIR__ . '/class-wp-lmaker-init-compats.php';
+	}
+
 	/**
 	 * Exports the database and/or filesystem to a file.
 	 *
@@ -56,6 +63,8 @@ class Backup_Command extends WP_CLI_Command {
 	 *
 	 */
 	public function export( $args, $assoc_args ) {
+
+		$this->init_deps();
 
 		self::$current_assoc_args = $assoc_args;
 
