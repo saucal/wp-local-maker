@@ -1,0 +1,29 @@
+{
+	"name": "saucal/wp-local-maker",
+	"type": "wp-cli-package",
+	"description": "WP CLI Exports with reduced datasets",
+	"homepage": "https://github.com/saucal/wp-local-maker",
+	"license": "GPL",
+	"authors": [
+		{
+			"name": "SAU/CAL",
+			"email": "info@saucal.com",
+			"homepage": "https://saucal.com"
+		}
+	],
+	"require": {
+		"wp-cli/wp-cli": "^2"
+	},
+	"config": {
+		"process-timeout": 7200,
+		"sort-packages": true
+	},
+	"autoload": {
+		"files": [
+			"wp-local-maker.php"
+		]
+	},
+	"support": {
+		"issues": "https://github.com/saucal/wp-local-maker/issues"
+	}
+}
