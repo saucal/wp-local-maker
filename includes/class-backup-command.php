@@ -12,8 +12,6 @@ WP_CLI::add_command( 'backup', 'Backup_Command' );
 
 /**
  * Perform backups of the database with reduced data sets
- *
- * @when after_wp_config_load
  */
 class Backup_Command extends WP_CLI_Command {
 
