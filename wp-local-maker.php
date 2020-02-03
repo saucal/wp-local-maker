@@ -14,9 +14,5 @@ if ( ! class_exists( 'WP_CLI' ) ) {
 
 
 require_once __DIR__ . '/includes/class-backup-command.php';
-require_once __DIR__ . '/includes/class-wp-lmaker-dir-crawler.php';
-require_once __DIR__ . '/includes/class-wp-lmaker-dir-filter.php';
-require_once __DIR__ . '/includes/class-wp-lmaker-core.php';
-require_once __DIR__ . '/includes/class-wp-lmaker-init-compats.php';
 
 

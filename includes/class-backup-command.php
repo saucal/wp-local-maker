@@ -12,8 +12,6 @@ WP_CLI::add_command( 'backup', 'Backup_Command' );
 
 /**
  * Perform backups of the database with reduced data sets
- *
- * @when after_wp_config_load
  */
 class Backup_Command extends WP_CLI_Command {
 
@@ -32,6 +30,13 @@ class Backup_Command extends WP_CLI_Command {
 	protected static $exported_files = array();
 
 	protected static $hash = '';
+
+	protected function init_deps() {
+		require_once __DIR__ . '/class-wp-lmaker-dir-crawler.php';
+		require_once __DIR__ . '/class-wp-lmaker-dir-filter.php';
+		require_once __DIR__ . '/class-wp-lmaker-core.php';
+		require_once __DIR__ . '/class-wp-lmaker-init-compats.php';
+	}
 
 	/**
 	 * Exports the database and/or filesystem to a file.
@@ -56,6 +61,8 @@ class Backup_Command extends WP_CLI_Command {
 	 *
 	 */
 	public function export( $args, $assoc_args ) {
+
+		$this->init_deps();
 
 		self::$current_assoc_args = $assoc_args;
 
