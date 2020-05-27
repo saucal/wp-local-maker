@@ -7,7 +7,25 @@ class WP_LMaker_MySQLDump {
 	}
 
 	public function run( $db, $target_file, $settings = array() ) {
+		if ( Backup_Command::get_flag_value( 'compat-mode' ) ) {
+			$this->run_php( $db, $target_file, $settings );
+			return;
+		}
 		$this->run_cmd( $db, $target_file, $settings );
+	}
+
+	protected function run_php( $db, $target_file, $settings = array() ) {
+		require_once __DIR__ . '/vendor/mysqldump-php/src/Ifsnop/Mysqldump/Mysqldump.php';
+		if ( isset( $settings['tables'] ) ) {
+			$settings['include-tables'] = $settings['tables'];
+			unset( $settings['tables'] );
+		}
+
+		// Tweak settings
+		$settings['add-drop-table'] = true;
+		
+		$dump = new Ifsnop\Mysqldump\Mysqldump( 'mysql:host=' . DB_HOST . ';dbname=' . $db, DB_USER, DB_PASSWORD, $settings );
+		$dump->start( $target_file );
 	}
 
 	protected function run_cmd( $db, $target_file, $settings = array() ) {
