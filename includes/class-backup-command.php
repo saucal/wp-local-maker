@@ -31,11 +31,15 @@ class Backup_Command extends WP_CLI_Command {
 
 	protected static $hash = '';
 
+	protected static $mysqldump = '';
+
 	protected function init_deps() {
 		require_once __DIR__ . '/class-wp-lmaker-dir-crawler.php';
 		require_once __DIR__ . '/class-wp-lmaker-dir-filter.php';
 		require_once __DIR__ . '/class-wp-lmaker-core.php';
 		require_once __DIR__ . '/class-wp-lmaker-init-compats.php';
+		require_once __DIR__ . '/class-wp-lmaker-mysqldump.php';
+		self::$mysqldump = new WP_LMaker_MySQLDump();
 	}
 
 	/**
@@ -201,19 +205,13 @@ class Backup_Command extends WP_CLI_Command {
 			WP_CLI::line( 'Exporting database structure (all tables).' );
 		}
 
-		$command          = '/usr/bin/env mysqldump --no-defaults %s --single-transaction --quick';
-		$command_esc_args = array( DB_NAME );
-
-		$command .= ' --no-data';
-
-		$escaped_command = call_user_func_array( '\WP_CLI\Utils\esc_cmd', array_merge( array( $command ), $command_esc_args ) );
-
 		$first_pass = self::get_temp_filename();
 
-		self::run(
-			$escaped_command,
+		self::$mysqldump->run(
+			DB_NAME,
+			$first_pass,
 			array(
-				'result-file' => $first_pass,
+				'no-data' => true,
 			)
 		);
 
@@ -249,28 +247,21 @@ class Backup_Command extends WP_CLI_Command {
 	}
 
 	public static function dump_data_from_table( $table, $this_table_file = null ) {
-		$command          = '/usr/bin/env mysqldump --no-defaults %s --single-transaction --quick';
-		$command_esc_args = array( DB_NAME );
-
-		$command .= ' --no-create-info';
-		$command .= ' --complete-insert';
-
-		$command           .= ' --tables';
-		$command           .= ' %s';
-		$command_esc_args[] = $table;
-
-		$escaped_command = call_user_func_array( '\WP_CLI\Utils\esc_cmd', array_merge( array( $command ), $command_esc_args ) );
-
 		if ( is_null( $this_table_file ) ) {
 			$this_table_file = self::get_temp_filename();
 		}
 
 		@unlink( $this_table_file );
 
-		self::run(
-			$escaped_command,
+		self::$mysqldump->run(
+			DB_NAME,
+			$this_table_file,
 			array(
-				'result-file' => $this_table_file,
+				'tables'          => array(
+					$table,
+				),
+				'no-create-info'  => true,
+				'complete-insert' => true,
 			)
 		);
 
@@ -735,31 +726,6 @@ class Backup_Command extends WP_CLI_Command {
 		@unlink( $target_wp_conf );
 
 		return $zip_fn;
-	}
-
-	private static function run( $cmd, $assoc_args = array(), $descriptors = null ) {
-		$required = array(
-			'host' => DB_HOST,
-			'user' => DB_USER,
-			'pass' => DB_PASSWORD,
-		);
-
-		if ( ! isset( $assoc_args['default-character-set'] ) && defined( 'DB_CHARSET' ) && constant( 'DB_CHARSET' ) ) {
-			$required['default-character-set'] = constant( 'DB_CHARSET' );
-		}
-
-		// Using 'dbuser' as option name to workaround clash with WP-CLI's global WP 'user' parameter, with 'dbpass' also available for tidyness.
-		if ( isset( $assoc_args['dbuser'] ) ) {
-			$required['user'] = $assoc_args['dbuser'];
-			unset( $assoc_args['dbuser'] );
-		}
-		if ( isset( $assoc_args['dbpass'] ) ) {
-			$required['pass'] = $assoc_args['dbpass'];
-			unset( $assoc_args['dbpass'], $assoc_args['password'] );
-		}
-
-		$final_args = array_merge( $assoc_args, $required );
-		Utils\run_mysql_command( $cmd, $final_args, $descriptors );
 	}
 
 	/**
