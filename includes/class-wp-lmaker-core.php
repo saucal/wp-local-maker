@@ -126,7 +126,7 @@ class WP_LMaker_Core {
 					'SELECT column_name
 					FROM information_schema.columns 
 					WHERE table_schema=%s AND table_name=%s',
-					DB_NAME,
+					Backup_Command::$db_name,
 					$temp
 				)
 			);

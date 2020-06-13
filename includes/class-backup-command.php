@@ -33,6 +33,8 @@ class Backup_Command extends WP_CLI_Command {
 
 	protected static $mysqldump = '';
 
+	public static $db_name = '';
+
 	protected function init_deps() {
 		require_once __DIR__ . '/class-wp-lmaker-dir-crawler.php';
 		require_once __DIR__ . '/class-wp-lmaker-dir-filter.php';
@@ -72,10 +74,13 @@ class Backup_Command extends WP_CLI_Command {
 
 		self::$hash = wp_generate_password( 7, false );
 
+		global $wpdb;
+		self::$db_name = $wpdb->get_var( 'SELECT DATABASE()' );
+
 		if ( ! empty( $args[0] ) ) {
 			$result_file = $args[0];
 		} else {
-			$result_file = sprintf( 'WPLM-%s-%s-%s.zip', DB_NAME, date( 'Y-m-d-H-i-s' ), self::$hash );
+			$result_file = sprintf( 'WPLM-%s-%s-%s.zip', self::$db_name, date( 'Y-m-d-H-i-s' ), self::$hash );
 		}
 
 		self::cleanup(); // early cleanup, to cleanup unfinished exports.
@@ -208,7 +213,7 @@ class Backup_Command extends WP_CLI_Command {
 		$first_pass = self::get_temp_filename();
 
 		self::$mysqldump->run(
-			DB_NAME,
+			self::$db_name,
 			$first_pass,
 			array(
 				'no-data' => true,
@@ -254,7 +259,7 @@ class Backup_Command extends WP_CLI_Command {
 		@unlink( $this_table_file );
 
 		self::$mysqldump->run(
-			DB_NAME,
+			self::$db_name,
 			$this_table_file,
 			array(
 				'tables'          => array(
@@ -328,7 +333,7 @@ class Backup_Command extends WP_CLI_Command {
 	public static function get_table_name( $table, $key = 'curr' ) {
 		global $wpdb;
 
-		$dbname          = DB_NAME;
+		$dbname          = self::$db_name;
 		$sql             = "SHOW FULL TABLES WHERE Table_Type = 'BASE TABLE' AND `TABLES_IN_{$dbname}` REGEXP '^({$wpdb->base_prefix}(?:([0-9]*)_)?)?{$table}$'";
 		$table_name_full = $wpdb->get_var( $sql );
 
