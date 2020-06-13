@@ -418,6 +418,11 @@ class Backup_Command extends WP_CLI_Command {
 			}
 		}
 
+		if ( self::verbosity_is( 4 ) ) {
+			$count = $wpdb->get_var( "SELECT COUNT(*) FROM $table" );
+			WP_CLI::line( sprintf( 'Exporting %d rows from %s.', $count, $replace_name ) );
+		}
+
 		$file = self::dump_data_from_table( $table, $table_file );
 
 		if ( $replace_name ) {
