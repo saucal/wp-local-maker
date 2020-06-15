@@ -153,7 +153,7 @@ class Backup_Command extends WP_CLI_Command {
 					WP_CLI::error( 'Target directory could not be created. Attempted to create: ' . dirname( $target_file ) );
 					return 1;
 				}
-				$moved = rename( $result_file_tmp, $target_file );
+				$moved = self::move_to_destination( $result_file_tmp, $target_file );
 				if ( ! $moved ) {
 					WP_CLI::error( 'Target file could not be moved out of the temporary location. Attempted to move it to: ' . $target_file );
 					return 1;
@@ -163,6 +163,10 @@ class Backup_Command extends WP_CLI_Command {
 				WP_CLI::line( sprintf( 'You can download here: %s', $result_file_url ) );
 				break;
 		}
+	}
+
+	private static function move_to_destination( $result_file_tmp, $target_file ) {
+		return rename( $result_file_tmp, $target_file );
 	}
 
 	public static function get_flag_value( $flag, $default = null ) {
