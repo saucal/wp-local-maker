@@ -197,7 +197,16 @@ class Backup_Command extends WP_LMaker_CLI_Command_Base {
 	}
 
 	private static function move_to_destination( $result_file_tmp, $target_file ) {
-		return rename( $result_file_tmp, $target_file );
+		if ( defined( 'VIP_GO_ENV' ) ) {
+			$src_stream = fopen( $result_file_tmp, 'r' );
+			$tar_stream = fopen( $target_file, 'w' );
+			$moved      = stream_copy_to_stream( $src_stream, $tar_stream );
+			fclose( $src_stream );
+			fclose( $tar_stream );
+			return $moved ? true : false;
+		} else {
+			return rename( $result_file_tmp, $target_file );
+		}
 	}
 
 	public static function get_flag_value( $flag, $default = null ) {
