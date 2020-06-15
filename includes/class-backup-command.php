@@ -251,6 +251,12 @@ class Backup_Command extends WP_CLI_Command {
 		return $first_pass;
 	}
 
+	private static function maybe_unlink( $file ) {
+		if ( file_exists( $file ) ) {
+			@unlink( $file );
+		}
+	}
+
 	public static function adjust_structure( $file ) {
 		$source      = fopen( $file, 'r' );
 		$target_name = self::get_temp_filename();
@@ -267,7 +273,7 @@ class Backup_Command extends WP_CLI_Command {
 		}
 
 		fclose( $source );
-		@unlink( $file );
+		self::maybe_unlink( $file );
 		fclose( $target );
 		rename( $target_name, $file );
 		return $file;
@@ -278,7 +284,7 @@ class Backup_Command extends WP_CLI_Command {
 			$this_table_file = self::get_temp_filename();
 		}
 
-		@unlink( $this_table_file );
+		self::maybe_unlink( $this_table_file );
 
 		self::$mysqldump->run(
 			self::$db_name,
@@ -633,7 +639,7 @@ class Backup_Command extends WP_CLI_Command {
 		}
 
 		fclose( $source );
-		@unlink( $file );
+		self::maybe_unlink( $file );
 		fclose( $target );
 		rename( $target_name, $file );
 		return $file;
@@ -641,7 +647,7 @@ class Backup_Command extends WP_CLI_Command {
 
 	protected static function join_files( $files ) {
 		$result_file = self::get_db_file_path();
-		@unlink( $result_file );
+		self::maybe_unlink( $result_file );
 		$target = fopen( $result_file, 'w' );
 
 		foreach ( $files as $file ) {
@@ -652,7 +658,7 @@ class Backup_Command extends WP_CLI_Command {
 			$source = fopen( $file, 'r' );
 			stream_copy_to_stream( $source, $target );
 			fclose( $source );
-			@unlink( $file );
+			self::maybe_unlink( $file );
 		}
 
 		fclose( $target );
@@ -755,7 +761,7 @@ class Backup_Command extends WP_CLI_Command {
 
 		WP_LMaker_Dir_Crawler::reset();
 
-		@unlink( $target_wp_conf );
+		self::maybe_unlink( $target_wp_conf );
 
 		return $zip_fn;
 	}
