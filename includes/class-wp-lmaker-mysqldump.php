@@ -15,6 +15,9 @@ class WP_LMaker_MySQLDump {
 	}
 
 	protected function run_php( $db, $target_file, $settings = array() ) {
+		$host = defined( 'DB_HOST' ) ? DB_HOST : 'noop';
+		$user = defined( 'DB_USER' ) ? DB_USER : 'noop';
+		$pass = defined( 'DB_PASSWORD' ) ? DB_PASSWORD : 'noop';
 		require_once __DIR__ . '/vendor/mysqldump-php/src/Ifsnop/Mysqldump/Mysqldump.php';
 		if ( isset( $settings['tables'] ) ) {
 			$settings['include-tables'] = $settings['tables'];
@@ -24,7 +27,7 @@ class WP_LMaker_MySQLDump {
 		// Tweak settings
 		$settings['add-drop-table'] = true;
 		
-		$dump = new Ifsnop\Mysqldump\Mysqldump( 'mysql:host=' . DB_HOST . ';dbname=' . $db, DB_USER, DB_PASSWORD, $settings );
+		$dump = new Ifsnop\Mysqldump\Mysqldump( 'mysql:host=' . $host . ';dbname=' . $db, $user, $pass, $settings );
 		$dump->start( $target_file );
 	}
 
