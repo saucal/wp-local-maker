@@ -148,8 +148,16 @@ class Backup_Command extends WP_CLI_Command {
 		switch ( $method ) {
 			case 'fs':
 				$target_file = $target_folder . '/' . $result_file;
-				wp_mkdir_p( dirname( $target_file ) );
-				rename( $result_file_tmp, $target_file );
+				$created = wp_mkdir_p( dirname( $target_file ) );
+				if ( ! $created ) {
+					WP_CLI::error( 'Target directory could not be created. Attempted to create: ' . dirname( $target_file ) );
+					return 1;
+				}
+				$moved = rename( $result_file_tmp, $target_file );
+				if ( ! $moved ) {
+					WP_CLI::error( 'Target file could not be moved out of the temporary location. Attempted to move it to: ' . $target_file );
+					return 1;
+				}
 				$result_file_url = $target_url_base . '/' . $result_file;
 				WP_CLI::line( sprintf( "Exported to '%s'. Export size: %s.", $result_file, $size ) );
 				WP_CLI::line( sprintf( 'You can download here: %s', $result_file_url ) );
