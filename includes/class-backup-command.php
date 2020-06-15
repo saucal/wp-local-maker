@@ -80,7 +80,7 @@ class Backup_Command extends WP_CLI_Command {
 		if ( ! empty( $args[0] ) ) {
 			$result_file = $args[0];
 		} else {
-			$result_file = sprintf( 'WPLM-%s-%s-%s.zip', self::$db_name, date( 'Y-m-d-H-i-s' ), self::$hash );
+			$result_file = sprintf( 'WPLM-%s-%s-%s', self::$db_name, date( 'Y-m-d-H-i-s' ), self::$hash );
 		}
 
 		self::cleanup(); // early cleanup, to cleanup unfinished exports.
@@ -119,12 +119,26 @@ class Backup_Command extends WP_CLI_Command {
 			}
 		}
 
-		$result_file_tmp = self::get_temp_filename( 'result-file' );
-		if ( $db_only ) {
-			self::maybe_zip_file( $db_file, $result_file_tmp, basename( self::get_db_file_path_target() ) );
+		$zip = WP_CLI\Utils\get_flag_value( $assoc_args, 'zip', true );
+
+		if ( ! $zip ) {
+			$result_file_tmp = $db_file;
+			if ( $db_only ) {
+				$result_file .= '.sql';
+			} else {
+				WP_CLI::error( 'You need to zip a folder to be able to download the backup.' );
+				return 1;
+			}
 		} else {
-			self::maybe_zip_folder( ABSPATH, $result_file_tmp );
+			$result_file    .= '.zip';
+			$result_file_tmp = self::get_temp_filename( 'result-file' );
+			if ( $db_only ) {
+				self::maybe_zip_file( $db_file, $result_file_tmp, basename( self::get_db_file_path_target() ) );
+			} else {
+				self::maybe_zip_folder( ABSPATH, $result_file_tmp );
+			}
 		}
+		
 
 		self::cleanup();
 		self::$current_assoc_args = array();
