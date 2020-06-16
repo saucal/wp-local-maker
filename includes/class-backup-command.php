@@ -165,8 +165,19 @@ class Backup_Command extends WP_CLI_Command {
 				$result_file_url = $target_url_base . '/' . $result_file;
 				WP_CLI::line( sprintf( "Exported to '%s'. Export size: %s.", $result_file, $size ) );
 				WP_CLI::line( sprintf( 'You can download here: %s', $result_file_url ) );
+				$backups_prev   = get_option( 'wplm_backups_history', array() );
+				$backups_prev[] = $target_file;
+				update_option( 'wplm_backups_history', $backups_prev, false );
 				break;
 		}
+	}
+
+	public function clean() {
+		$backups_prev = get_option( 'wplm_backups_history', array() );
+		foreach ( $backups_prev as $backup ) {
+			self::maybe_unlink( $backup );
+		}
+		update_option( 'wplm_backups_history', array(), false );
 	}
 
 	public function __hyperdb_force_master() { // phpcs:ignore
