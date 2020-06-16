@@ -75,6 +75,10 @@ class Backup_Command extends WP_CLI_Command {
 		self::$hash = wp_generate_password( 7, false );
 
 		global $wpdb;
+		if ( is_a( $wpdb, 'hyperdb' ) ) {
+			$wpdb->add_callback( array( $this, '__hyperdb_force_master' ) );
+		}
+
 		self::$db_name = $wpdb->get_var( 'SELECT DATABASE()' );
 
 		if ( ! empty( $args[0] ) ) {
@@ -163,6 +167,12 @@ class Backup_Command extends WP_CLI_Command {
 				WP_CLI::line( sprintf( 'You can download here: %s', $result_file_url ) );
 				break;
 		}
+	}
+
+	public function __hyperdb_force_master() { // phpcs:ignore
+		return array(
+			'use_master' => true,
+		);
 	}
 
 	private static function move_to_destination( $result_file_tmp, $target_file ) {
