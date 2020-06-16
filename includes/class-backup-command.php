@@ -33,6 +33,8 @@ class Backup_Command extends WP_CLI_Command {
 
 	protected static $mysqldump = null;
 
+	protected static $start_time = null;
+
 	public static $db_name = '';
 
 	protected function init_deps() {
@@ -67,6 +69,8 @@ class Backup_Command extends WP_CLI_Command {
 	 *
 	 */
 	public function export( $args, $assoc_args ) {
+
+		self::$start_time = microtime( true );
 
 		$this->init_deps();
 
@@ -163,7 +167,7 @@ class Backup_Command extends WP_CLI_Command {
 					return 1;
 				}
 				$result_file_url = $target_url_base . '/' . $result_file;
-				WP_CLI::line( sprintf( "Exported to '%s'. Export size: %s.", $result_file, $size ) );
+				WP_CLI::line( sprintf( "Exported to '%s'. Export size: %s. Time taken: %ss.", $result_file, $size, number_format( microtime( true ) - self::$start_time, 1 ) ) );
 				WP_CLI::line( sprintf( 'You can download here: %s', $result_file_url ) );
 				$backups_prev   = get_option( 'wplm_backups_history', array() );
 				$backups_prev[] = $target_file;
