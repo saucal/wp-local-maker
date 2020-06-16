@@ -31,7 +31,7 @@ class Backup_Command extends WP_CLI_Command {
 
 	protected static $hash = '';
 
-	protected static $mysqldump = '';
+	protected static $mysqldump = null;
 
 	public static $db_name = '';
 
@@ -152,7 +152,7 @@ class Backup_Command extends WP_CLI_Command {
 		switch ( $method ) {
 			case 'fs':
 				$target_file = $target_folder . '/' . $result_file;
-				$created = wp_mkdir_p( dirname( $target_file ) );
+				$created     = wp_mkdir_p( dirname( $target_file ) );
 				if ( ! $created ) {
 					WP_CLI::error( 'Target directory could not be created. Attempted to create: ' . dirname( $target_file ) );
 					return 1;
