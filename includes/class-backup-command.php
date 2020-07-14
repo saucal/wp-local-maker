@@ -453,7 +453,7 @@ class Backup_Command extends WP_CLI_Command {
 		do_action( 'wp_local_maker_before_dump_' . $clean_table_name, $table );
 		do_action( 'wp_local_maker_before_dump', $table, $clean_table_name );
 
-		if ( self::$new_domain ) {
+		if ( self::$new_domain && self::$new_domain != self::$old_domain ) {
 			if ( in_array( $clean_table_name, array( 'blogs', 'site' ), true ) ) {
 				$search_command = 'search-replace ' . self::$old_domain . ' ' . self::$new_domain . ' ' . $table . ' --all-tables --precise --report=0';
 			} else {
