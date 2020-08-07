@@ -477,7 +477,7 @@ class Backup_Command extends WP_CLI_Command {
 
 		if ( self::verbosity_is( 4 ) ) {
 			$count = $wpdb->get_var( "SELECT COUNT(*) FROM $table" );
-			WP_CLI::line( sprintf( 'Exporting %d rows from %s.', $count, $replace_name ) );
+			WP_CLI::line( sprintf( 'Dumping %d rows from %s.', $count, $replace_name ) );
 		}
 
 		$file = self::dump_data_from_table( $table, $table_file );
@@ -489,7 +489,7 @@ class Backup_Command extends WP_CLI_Command {
 		$original_table_name = $replace_name ? $replace_name : $table;
 		$export_size         = filesize( $file );
 		if ( self::verbosity_is( 1 ) ) {
-			WP_CLI::line( sprintf( 'Exported %d rows from %s. Export size: %s', $wpdb->get_var( "SELECT COUNT(*) FROM {$table}" ), $original_table_name, size_format( $export_size ) ) );
+			WP_CLI::line( sprintf( 'Dumped %d rows from %s. Export size: %s', $wpdb->get_var( "SELECT COUNT(*) FROM {$table}" ), $original_table_name, size_format( $export_size ) ) );
 		}
 
 		self::$exported_files[ $original_table_name ] = $export_size;
@@ -573,6 +573,10 @@ class Backup_Command extends WP_CLI_Command {
 				$current = $table;
 				$temp    = self::get_table_temp_name( $current );
 
+				if ( self::verbosity_is( 4 ) ) {
+					WP_CLI::line( sprintf( 'Copying all rows from %s.', $current ) );
+				}
+
 				$wpdb->query( "CREATE TABLE IF NOT EXISTS {$temp} LIKE {$current}" );
 				$query = "REPLACE INTO {$temp} SELECT * FROM {$current}";
 				$wpdb->query( $query );
@@ -624,6 +628,9 @@ class Backup_Command extends WP_CLI_Command {
 			foreach ( $blog_queue as $i => $tbl_info ) {
 				$callback = $tbl_info['callback'];
 				if ( is_callable( $callback ) ) {
+					if ( self::verbosity_is( 4 ) ) {
+						WP_CLI::line( sprintf( 'Filtering rows from %s.', $tbl_info['currname'] ) );
+					}
 					$files[] = call_user_func( $callback, $tbl_info['currname'], $tbl_info['tempname'] );
 					unset( $process_queue[ $blog_id ][ $i ] );
 				}
