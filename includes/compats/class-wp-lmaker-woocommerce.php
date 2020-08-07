@@ -18,6 +18,7 @@ class WP_LMaker_WooCommerce extends WP_LMaker_Abstract_Addon {
 		add_action( 'wp_local_maker_posts_after_posts', array( $this, 'process_orders' ) );
 		add_action( 'wp_local_maker_posts_after_posts', array( $this, 'process_coupons' ) );
 		add_action( 'wp_local_maker_posts_after_posts', array( $this, 'process_products' ) );
+		add_action( 'wp_local_maker_before_dump_options', array( $this, 'before_dump_options' ) );
 		// LiquidWeb Orders Table Compat
 		add_filter( 'wp_local_maker_custom_process_tables', array( $this, 'enqueue_process_orders_table' ), 25 );
 	}
@@ -234,6 +235,15 @@ class WP_LMaker_WooCommerce extends WP_LMaker_Abstract_Addon {
 
 	public function process_product_meta_lookup() {
 		return Backup_Command::dependant_table_dump_single( 'wc_product_meta_lookup', 'posts', 'product_id', 'ID' );
+	}
+
+	public function before_dump_options( $table_name ) {
+		global $wpdb;
+
+		$wpdb->query(
+			"DELETE FROM {$table_name}
+			WHERE option_name LIKE '_wc_session%'"
+		);
 	}
 }
 new WP_LMaker_WooCommerce();
