@@ -18,6 +18,8 @@ class WP_LMaker_WooCommerce extends WP_LMaker_Abstract_Addon {
 		add_action( 'wp_local_maker_posts_after_posts', array( $this, 'process_orders' ) );
 		add_action( 'wp_local_maker_posts_after_posts', array( $this, 'process_coupons' ) );
 		add_action( 'wp_local_maker_posts_after_posts', array( $this, 'process_products' ) );
+		// LiquidWeb Orders Table Compat
+		add_filter( 'wp_local_maker_custom_process_tables', array( $this, 'enqueue_process_orders_table' ), 25 );
 	}
 
 	public function ignore_straight_post_types( $types ) {
@@ -188,6 +190,15 @@ class WP_LMaker_WooCommerce extends WP_LMaker_Abstract_Addon {
 		$tables[] = 'woocommerce_sessions';
 		$tables[] = 'woocommerce_log';
 		return $tables;
+	}
+
+	public function enqueue_process_orders_table( $tables ) {
+		$tables['woocommerce_orders'] = array( $this, 'process_orders_table' );
+		return $tables;
+	}
+
+	public function process_orders_table() {
+		return Backup_Command::dependant_table_dump_single( 'woocommerce_orders', 'posts', 'order_id', 'ID' );
 	}
 
 	public function enqueue_process_lookups( $tables ) {
