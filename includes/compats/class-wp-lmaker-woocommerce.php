@@ -12,6 +12,7 @@ class WP_LMaker_WooCommerce extends WP_LMaker_Abstract_Addon {
 		add_filter( 'wp_local_maker_custom_process_tables', array( $this, 'enqueue_process_order_items' ), 25 );
 		add_filter( 'wp_local_maker_custom_process_tables', array( $this, 'enqueue_process_download_permissions' ), 27 );
 		add_filter( 'wp_local_maker_custom_process_tables', array( $this, 'enqueue_process_payment_tokens' ), 35 );
+		add_filter( 'wp_local_maker_custom_process_tables', array( $this, 'enqueue_process_lookups' ), 65 );
 		add_action( 'wp_local_maker_users_after_authors', array( $this, 'process_customers' ) );
 		add_filter( 'wp_local_maker_ignore_straight_post_types', array( $this, 'ignore_straight_post_types' ) );
 		add_action( 'wp_local_maker_posts_after_posts', array( $this, 'process_orders' ) );
@@ -187,6 +188,41 @@ class WP_LMaker_WooCommerce extends WP_LMaker_Abstract_Addon {
 		$tables[] = 'woocommerce_sessions';
 		$tables[] = 'woocommerce_log';
 		return $tables;
+	}
+
+	public function enqueue_process_lookups( $tables ) {
+		$tables['wc_customer_lookup'] = array( $this, 'process_customer_lookup' );
+		$tables['wc_order_product_lookup'] = array( $this, 'process_order_product_lookup' );
+		$tables['wc_order_tax_lookup'] = array( $this, 'process_tax_lookup' );
+		$tables['wc_order_coupon_lookup'] = array( $this, 'process_coupon_lookup' );
+		$tables['wc_order_stats'] = array( $this, 'process_order_stats_lookup' );
+		$tables['wc_product_meta_lookup'] = array( $this, 'process_product_meta_lookup' );
+		
+		return $tables;
+	}
+
+	public function process_customer_lookup() {
+		return Backup_Command::dependant_table_dump_single( 'wc_customer_lookup', 'users', 'user_id', 'ID' );
+	}
+
+	public function process_order_product_lookup() {
+		return Backup_Command::dependant_table_dump_single( 'wc_order_product_lookup', 'posts', 'order_id', 'ID' );
+	}
+
+	public function process_tax_lookup() {
+		return Backup_Command::dependant_table_dump_single( 'wc_order_tax_lookup', 'posts', 'order_id', 'ID' );
+	}
+
+	public function process_coupon_lookup() {
+		return Backup_Command::dependant_table_dump_single( 'wc_order_coupon_lookup', 'posts', 'order_id', 'ID' );
+	}
+
+	public function process_order_stats_lookup() {
+		return Backup_Command::dependant_table_dump_single( 'wc_order_stats', 'posts', 'order_id', 'ID' );
+	}
+
+	public function process_product_meta_lookup() {
+		return Backup_Command::dependant_table_dump_single( 'wc_product_meta_lookup', 'posts', 'product_id', 'ID' );
 	}
 }
 new WP_LMaker_WooCommerce();
