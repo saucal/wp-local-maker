@@ -143,7 +143,7 @@ class Backup_Command extends WP_CLI_Command {
 			if ( $db_only ) {
 				self::maybe_zip_file( $db_file, $result_file_tmp, basename( self::get_db_file_path_target() ) );
 			} else {
-				self::maybe_zip_folder( ABSPATH, $result_file_tmp );
+				self::maybe_zip_folder( ABSPATH, $result_file_tmp, $db_file );
 			}
 		}
 		
@@ -738,7 +738,7 @@ class Backup_Command extends WP_CLI_Command {
 		return $uploads_dir;
 	}
 
-	protected static function maybe_zip_folder( $root_path, $zip_fn ) {
+	protected static function maybe_zip_folder( $root_path, $zip_fn, $db_file = false ) {
 		echo 'Compressing directory';
 
 		$root_path = untrailingslashit( $root_path );
@@ -797,6 +797,10 @@ class Backup_Command extends WP_CLI_Command {
 				}
 			}
 			$zip->addFile( $target_wp_conf, 'wp-config.php' );
+		}
+
+		if ( ! empty( $db_file ) ) {
+			$zip->addFile( $db_file, self::get_content_folder_path( 'database.sql' ) );
 		}
 
 		do_action( 'wp_local_maker_before_closing_zip', $zip );
