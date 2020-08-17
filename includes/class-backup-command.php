@@ -729,20 +729,31 @@ class Backup_Command extends WP_CLI_Command {
 		return $zip_fn;
 	}
 
+	public static function get_content_folder_path( $path ) {
+		$uploads_dir = 'wp-content/' . $path;
+		if ( strpos( WP_CONTENT_DIR, ABSPATH ) === 0 ) {
+			$uploads_dir = trailingslashit( str_replace( ABSPATH, '', WP_CONTENT_DIR ) ) . $path;
+		}
+
+		return $uploads_dir;
+	}
+
 	protected static function maybe_zip_folder( $root_path, $zip_fn ) {
 		echo 'Compressing directory';
 
 		$root_path = untrailingslashit( $root_path );
 
+		$uploads_dir = self::get_content_folder_path( 'uploads' );
+
 		$zip = WP_LMaker_Dir_Crawler::process(
 			array(
 				'path'          => $root_path,
-				'ignored_paths' => apply_filters( 'wp_local_maker_zip_ignored_paths', array( 'wp-content/uploads' ) ),
+				'ignored_paths' => apply_filters( 'wp_local_maker_zip_ignored_paths', array( $uploads_dir ) ),
 			),
 			$zip_fn
 		);
 
-		$zip->addEmptyDir( 'wp-content/uploads' );
+		$zip->addEmptyDir( $uploads_dir );
 
 		foreach ( apply_filters( 'wp_local_maker_extra_compressed_paths', array() ) as $relative_path_to_compress ) {
 			WP_LMaker_Dir_Crawler::process(

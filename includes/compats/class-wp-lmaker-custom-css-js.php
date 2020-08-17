@@ -6,7 +6,7 @@ class WP_LMaker_Custom_CSS_JS extends WP_LMaker_Abstract_Addon {
 	}
 
 	public function custom_paths( $paths ) {
-		$paths[] = 'wp-content/uploads/custom-css-js';
+		$paths[] = Backup_Command::get_content_folder_path( 'uploads/custom-css-js' );
 		return $paths;
 	}
 }
