@@ -61,6 +61,10 @@ class WP_LMaker_Dir_Crawler {
 				}
 			}
 
+			if ( $file->isLink() ) {
+				continue;
+			}
+
 			if ( ! $file->isDir() ) {
 				$this_size         = $file->getSize();
 				self::$total_size += $this_size;
