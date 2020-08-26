@@ -46,7 +46,11 @@ class PDO {
 
 	public function quote( $string ) {
 		global $wpdb;
-		return $wpdb->prepare( '%s', $string );
+		$escaped = $wpdb->prepare( '%s', $string );
+		if ( method_exists( $wpdb, 'remove_placeholder_escape' ) ) {
+			$escaped = $wpdb->remove_placeholder_escape( $escaped );
+		}
+		return $escaped;
 	}
 
 	public function __call( $name, $arguments ) {
