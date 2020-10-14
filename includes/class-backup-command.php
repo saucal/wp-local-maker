@@ -31,11 +31,19 @@ class Backup_Command extends WP_CLI_Command {
 
 	protected static $hash = '';
 
+	protected static $mysqldump = null;
+
+	protected static $start_time = null;
+
+	public static $db_name = '';
+
 	protected function init_deps() {
 		require_once __DIR__ . '/class-wp-lmaker-dir-crawler.php';
 		require_once __DIR__ . '/class-wp-lmaker-dir-filter.php';
 		require_once __DIR__ . '/class-wp-lmaker-core.php';
 		require_once __DIR__ . '/class-wp-lmaker-init-compats.php';
+		require_once __DIR__ . '/class-wp-lmaker-mysqldump.php';
+		self::$mysqldump = new WP_LMaker_MySQLDump();
 	}
 
 	/**
@@ -62,16 +70,25 @@ class Backup_Command extends WP_CLI_Command {
 	 */
 	public function export( $args, $assoc_args ) {
 
+		self::$start_time = microtime( true );
+
 		$this->init_deps();
 
 		self::$current_assoc_args = $assoc_args;
 
 		self::$hash = wp_generate_password( 7, false );
 
+		global $wpdb;
+		if ( is_a( $wpdb, 'hyperdb' ) ) {
+			$wpdb->add_callback( array( $this, '__hyperdb_force_master' ) );
+		}
+
+		self::$db_name = $wpdb->get_var( 'SELECT DATABASE()' );
+
 		if ( ! empty( $args[0] ) ) {
 			$result_file = $args[0];
 		} else {
-			$result_file = sprintf( 'WPLM-%s-%s-%s.zip', DB_NAME, date( 'Y-m-d-H-i-s' ), self::$hash );
+			$result_file = sprintf( 'WPLM-%s-%s-%s', self::$db_name, date( 'Y-m-d-H-i-s' ), self::$hash );
 		}
 
 		self::cleanup(); // early cleanup, to cleanup unfinished exports.
@@ -110,12 +127,26 @@ class Backup_Command extends WP_CLI_Command {
 			}
 		}
 
-		$result_file_tmp = self::get_temp_filename( 'result-file' );
-		if ( $db_only ) {
-			self::maybe_zip_file( $db_file, $result_file_tmp, basename( self::get_db_file_path_target() ) );
+		$zip = WP_CLI\Utils\get_flag_value( $assoc_args, 'zip', true );
+
+		if ( ! $zip ) {
+			$result_file_tmp = $db_file;
+			if ( $db_only ) {
+				$result_file .= '.sql';
+			} else {
+				WP_CLI::error( 'You need to zip a folder to be able to download the backup.' );
+				return 1;
+			}
 		} else {
-			self::maybe_zip_folder( ABSPATH, $result_file_tmp );
+			$result_file    .= '.zip';
+			$result_file_tmp = self::get_temp_filename( 'result-file' );
+			if ( $db_only ) {
+				self::maybe_zip_file( $db_file, $result_file_tmp, basename( self::get_db_file_path_target() ) );
+			} else {
+				self::maybe_zip_folder( ABSPATH, $result_file_tmp, $db_file );
+			}
 		}
+		
 
 		self::cleanup();
 		self::$current_assoc_args = array();
@@ -125,13 +156,42 @@ class Backup_Command extends WP_CLI_Command {
 		switch ( $method ) {
 			case 'fs':
 				$target_file = $target_folder . '/' . $result_file;
-				wp_mkdir_p( dirname( $target_file ) );
-				rename( $result_file_tmp, $target_file );
+				$created     = wp_mkdir_p( dirname( $target_file ) );
+				if ( ! $created ) {
+					WP_CLI::error( 'Target directory could not be created. Attempted to create: ' . dirname( $target_file ) );
+					return 1;
+				}
+				$moved = self::move_to_destination( $result_file_tmp, $target_file );
+				if ( ! $moved ) {
+					WP_CLI::error( 'Target file could not be moved out of the temporary location. Attempted to move it to: ' . $target_file );
+					return 1;
+				}
 				$result_file_url = $target_url_base . '/' . $result_file;
-				WP_CLI::line( sprintf( "Exported to '%s'. Export size: %s.", $result_file, $size ) );
+				WP_CLI::line( sprintf( "Exported to '%s'. Export size: %s. Time taken: %ss.", $result_file, $size, number_format( microtime( true ) - self::$start_time, 1 ) ) );
 				WP_CLI::line( sprintf( 'You can download here: %s', $result_file_url ) );
+				$backups_prev   = get_option( 'wplm_backups_history', array() );
+				$backups_prev[] = $target_file;
+				update_option( 'wplm_backups_history', $backups_prev, false );
 				break;
 		}
+	}
+
+	public function clean() {
+		$backups_prev = get_option( 'wplm_backups_history', array() );
+		foreach ( $backups_prev as $backup ) {
+			self::maybe_unlink( $backup );
+		}
+		update_option( 'wplm_backups_history', array(), false );
+	}
+
+	public function __hyperdb_force_master() { // phpcs:ignore
+		return array(
+			'use_master' => true,
+		);
+	}
+
+	private static function move_to_destination( $result_file_tmp, $target_file ) {
+		return rename( $result_file_tmp, $target_file );
 	}
 
 	public static function get_flag_value( $flag, $default = null ) {
@@ -201,19 +261,13 @@ class Backup_Command extends WP_CLI_Command {
 			WP_CLI::line( 'Exporting database structure (all tables).' );
 		}
 
-		$command          = '/usr/bin/env mysqldump --no-defaults %s --single-transaction --quick';
-		$command_esc_args = array( DB_NAME );
-
-		$command .= ' --no-data';
-
-		$escaped_command = call_user_func_array( '\WP_CLI\Utils\esc_cmd', array_merge( array( $command ), $command_esc_args ) );
-
 		$first_pass = self::get_temp_filename();
 
-		self::run(
-			$escaped_command,
+		self::$mysqldump->run(
+			self::$db_name,
+			$first_pass,
 			array(
-				'result-file' => $first_pass,
+				'no-data' => true,
 			)
 		);
 
@@ -224,6 +278,12 @@ class Backup_Command extends WP_CLI_Command {
 		}
 
 		return $first_pass;
+	}
+
+	private static function maybe_unlink( $file ) {
+		if ( file_exists( $file ) ) {
+			@unlink( $file );
+		}
 	}
 
 	public static function adjust_structure( $file ) {
@@ -242,35 +302,28 @@ class Backup_Command extends WP_CLI_Command {
 		}
 
 		fclose( $source );
-		@unlink( $file );
+		self::maybe_unlink( $file );
 		fclose( $target );
 		rename( $target_name, $file );
 		return $file;
 	}
 
 	public static function dump_data_from_table( $table, $this_table_file = null ) {
-		$command          = '/usr/bin/env mysqldump --no-defaults %s --single-transaction --quick';
-		$command_esc_args = array( DB_NAME );
-
-		$command .= ' --no-create-info';
-		$command .= ' --complete-insert';
-
-		$command           .= ' --tables';
-		$command           .= ' %s';
-		$command_esc_args[] = $table;
-
-		$escaped_command = call_user_func_array( '\WP_CLI\Utils\esc_cmd', array_merge( array( $command ), $command_esc_args ) );
-
 		if ( is_null( $this_table_file ) ) {
 			$this_table_file = self::get_temp_filename();
 		}
 
-		@unlink( $this_table_file );
+		self::maybe_unlink( $this_table_file );
 
-		self::run(
-			$escaped_command,
+		self::$mysqldump->run(
+			self::$db_name,
+			$this_table_file,
 			array(
-				'result-file' => $this_table_file,
+				'tables'          => array(
+					$table,
+				),
+				'no-create-info'  => true,
+				'complete-insert' => true,
 			)
 		);
 
@@ -337,7 +390,7 @@ class Backup_Command extends WP_CLI_Command {
 	public static function get_table_name( $table, $key = 'curr' ) {
 		global $wpdb;
 
-		$dbname          = DB_NAME;
+		$dbname          = self::$db_name;
 		$sql             = "SHOW FULL TABLES WHERE Table_Type = 'BASE TABLE' AND `TABLES_IN_{$dbname}` REGEXP '^({$wpdb->base_prefix}(?:([0-9]*)_)?)?{$table}$'";
 		$table_name_full = $wpdb->get_var( $sql );
 
@@ -400,7 +453,7 @@ class Backup_Command extends WP_CLI_Command {
 		do_action( 'wp_local_maker_before_dump_' . $clean_table_name, $table );
 		do_action( 'wp_local_maker_before_dump', $table, $clean_table_name );
 
-		if ( self::$new_domain ) {
+		if ( self::$new_domain && self::$new_domain != self::$old_domain ) {
 			if ( in_array( $clean_table_name, array( 'blogs', 'site' ), true ) ) {
 				$search_command = 'search-replace ' . self::$old_domain . ' ' . self::$new_domain . ' ' . $table . ' --all-tables --precise --report=0';
 			} else {
@@ -422,6 +475,11 @@ class Backup_Command extends WP_CLI_Command {
 			}
 		}
 
+		if ( self::verbosity_is( 4 ) ) {
+			$count = $wpdb->get_var( "SELECT COUNT(*) FROM $table" );
+			WP_CLI::line( sprintf( 'Dumping %d rows from %s.', $count, $replace_name ) );
+		}
+
 		$file = self::dump_data_from_table( $table, $table_file );
 
 		if ( $replace_name ) {
@@ -431,7 +489,7 @@ class Backup_Command extends WP_CLI_Command {
 		$original_table_name = $replace_name ? $replace_name : $table;
 		$export_size         = filesize( $file );
 		if ( self::verbosity_is( 1 ) ) {
-			WP_CLI::line( sprintf( 'Exported %d rows from %s. Export size: %s', $wpdb->get_var( "SELECT COUNT(*) FROM {$table}" ), $original_table_name, size_format( $export_size ) ) );
+			WP_CLI::line( sprintf( 'Dumped %d rows from %s. Export size: %s', $wpdb->get_var( "SELECT COUNT(*) FROM {$table}" ), $original_table_name, size_format( $export_size ) ) );
 		}
 
 		self::$exported_files[ $original_table_name ] = $export_size;
@@ -515,6 +573,10 @@ class Backup_Command extends WP_CLI_Command {
 				$current = $table;
 				$temp    = self::get_table_temp_name( $current );
 
+				if ( self::verbosity_is( 4 ) ) {
+					WP_CLI::line( sprintf( 'Copying all rows from %s.', $current ) );
+				}
+
 				$wpdb->query( "CREATE TABLE IF NOT EXISTS {$temp} LIKE {$current}" );
 				$query = "REPLACE INTO {$temp} SELECT * FROM {$current}";
 				$wpdb->query( $query );
@@ -566,6 +628,9 @@ class Backup_Command extends WP_CLI_Command {
 			foreach ( $blog_queue as $i => $tbl_info ) {
 				$callback = $tbl_info['callback'];
 				if ( is_callable( $callback ) ) {
+					if ( self::verbosity_is( 4 ) ) {
+						WP_CLI::line( sprintf( 'Filtering rows from %s.', $tbl_info['currname'] ) );
+					}
 					$files[] = call_user_func( $callback, $tbl_info['currname'], $tbl_info['tempname'] );
 					unset( $process_queue[ $blog_id ][ $i ] );
 				}
@@ -610,7 +675,7 @@ class Backup_Command extends WP_CLI_Command {
 		}
 
 		fclose( $source );
-		@unlink( $file );
+		self::maybe_unlink( $file );
 		fclose( $target );
 		rename( $target_name, $file );
 		return $file;
@@ -618,7 +683,7 @@ class Backup_Command extends WP_CLI_Command {
 
 	protected static function join_files( $files ) {
 		$result_file = self::get_db_file_path();
-		@unlink( $result_file );
+		self::maybe_unlink( $result_file );
 		$target = fopen( $result_file, 'w' );
 
 		foreach ( $files as $file ) {
@@ -629,7 +694,7 @@ class Backup_Command extends WP_CLI_Command {
 			$source = fopen( $file, 'r' );
 			stream_copy_to_stream( $source, $target );
 			fclose( $source );
-			@unlink( $file );
+			self::maybe_unlink( $file );
 		}
 
 		fclose( $target );
@@ -664,20 +729,31 @@ class Backup_Command extends WP_CLI_Command {
 		return $zip_fn;
 	}
 
-	protected static function maybe_zip_folder( $root_path, $zip_fn ) {
+	public static function get_content_folder_path( $path ) {
+		$uploads_dir = 'wp-content/' . $path;
+		if ( strpos( WP_CONTENT_DIR, ABSPATH ) === 0 ) {
+			$uploads_dir = trailingslashit( str_replace( ABSPATH, '', WP_CONTENT_DIR ) ) . $path;
+		}
+
+		return $uploads_dir;
+	}
+
+	protected static function maybe_zip_folder( $root_path, $zip_fn, $db_file = false ) {
 		echo 'Compressing directory';
 
 		$root_path = untrailingslashit( $root_path );
 
+		$uploads_dir = self::get_content_folder_path( 'uploads' );
+
 		$zip = WP_LMaker_Dir_Crawler::process(
 			array(
 				'path'          => $root_path,
-				'ignored_paths' => apply_filters( 'wp_local_maker_zip_ignored_paths', array( 'wp-content/uploads' ) ),
+				'ignored_paths' => apply_filters( 'wp_local_maker_zip_ignored_paths', array( $uploads_dir ) ),
 			),
 			$zip_fn
 		);
 
-		$zip->addEmptyDir( 'wp-content/uploads' );
+		$zip->addEmptyDir( $uploads_dir );
 
 		foreach ( apply_filters( 'wp_local_maker_extra_compressed_paths', array() ) as $relative_path_to_compress ) {
 			WP_LMaker_Dir_Crawler::process(
@@ -723,6 +799,10 @@ class Backup_Command extends WP_CLI_Command {
 			$zip->addFile( $target_wp_conf, 'wp-config.php' );
 		}
 
+		if ( ! empty( $db_file ) ) {
+			$zip->addFile( $db_file, self::get_content_folder_path( 'database.sql' ) );
+		}
+
 		do_action( 'wp_local_maker_before_closing_zip', $zip );
 
 		// Zip archive will be created only after closing object
@@ -732,34 +812,9 @@ class Backup_Command extends WP_CLI_Command {
 
 		WP_LMaker_Dir_Crawler::reset();
 
-		@unlink( $target_wp_conf );
+		self::maybe_unlink( $target_wp_conf );
 
 		return $zip_fn;
-	}
-
-	private static function run( $cmd, $assoc_args = array(), $descriptors = null ) {
-		$required = array(
-			'host' => DB_HOST,
-			'user' => DB_USER,
-			'pass' => DB_PASSWORD,
-		);
-
-		if ( ! isset( $assoc_args['default-character-set'] ) && defined( 'DB_CHARSET' ) && constant( 'DB_CHARSET' ) ) {
-			$required['default-character-set'] = constant( 'DB_CHARSET' );
-		}
-
-		// Using 'dbuser' as option name to workaround clash with WP-CLI's global WP 'user' parameter, with 'dbpass' also available for tidyness.
-		if ( isset( $assoc_args['dbuser'] ) ) {
-			$required['user'] = $assoc_args['dbuser'];
-			unset( $assoc_args['dbuser'] );
-		}
-		if ( isset( $assoc_args['dbpass'] ) ) {
-			$required['pass'] = $assoc_args['dbpass'];
-			unset( $assoc_args['dbpass'], $assoc_args['password'] );
-		}
-
-		$final_args = array_merge( $assoc_args, $required );
-		Utils\run_mysql_command( $cmd, $final_args, $descriptors );
 	}
 
 	/**
