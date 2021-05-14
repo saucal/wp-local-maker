@@ -13,6 +13,7 @@ if ( ! class_exists( 'WP_CLI' ) ) {
 }
 
 
+require_once __DIR__ . '/includes/class-wp-lmaker-cli-command-base.php';
 require_once __DIR__ . '/includes/class-backup-command.php';
 
 

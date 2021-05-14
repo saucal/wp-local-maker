@@ -13,7 +13,7 @@ WP_CLI::add_command( 'backup', 'Backup_Command' );
 /**
  * Perform backups of the database with reduced data sets
  */
-class Backup_Command extends WP_CLI_Command {
+class Backup_Command extends WP_LMaker_CLI_Command_Base {
 
 	protected static $tables_info = null;
 
@@ -98,6 +98,12 @@ class Backup_Command extends WP_CLI_Command {
 		$target_folder   = untrailingslashit( ABSPATH );
 		$target_url_base = untrailingslashit( site_url( '' ) );
 		$method          = 'fs';
+		if ( defined( 'VIP_GO_ENV' ) ) {
+			WP_CLI::line( 'VIP GO Environment detected. Forcing db-only mode.' );
+			$db_only         = true;
+			$target_folder   = self::get_uploads_folder_path( 'wplm' );
+			$target_url_base = self::get_uploads_folder_url( 'wplm' );
+		}
 
 		$replace = WP_CLI\Utils\get_flag_value( $assoc_args, 'new-domain', false );
 		if ( $replace ) {
@@ -191,7 +197,16 @@ class Backup_Command extends WP_CLI_Command {
 	}
 
 	private static function move_to_destination( $result_file_tmp, $target_file ) {
-		return rename( $result_file_tmp, $target_file );
+		if ( defined( 'VIP_GO_ENV' ) ) {
+			$src_stream = fopen( $result_file_tmp, 'r' );
+			$tar_stream = fopen( $target_file, 'w' );
+			$moved      = stream_copy_to_stream( $src_stream, $tar_stream );
+			fclose( $src_stream );
+			fclose( $tar_stream );
+			return $moved ? true : false;
+		} else {
+			return rename( $result_file_tmp, $target_file );
+		}
 	}
 
 	public static function get_flag_value( $flag, $default = null ) {
