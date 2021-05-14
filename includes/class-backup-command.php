@@ -200,9 +200,13 @@ class Backup_Command extends WP_LMaker_CLI_Command_Base {
 		}
 	}
 
+	/**
+	 * Cleanup previously generated exports.
+	 */
 	public function clean() {
 		$backups_prev = get_option( 'wplm_backups_history', array() );
 		foreach ( $backups_prev as $backup ) {
+			WP_CLI::line( sprintf( 'Cleaning up file %s.', $backup ) );
 			self::maybe_unlink( $backup );
 		}
 		update_option( 'wplm_backups_history', array(), false );
