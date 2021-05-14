@@ -10,11 +10,11 @@ class WP_LMaker_Yoast_WordPress_SEO extends WP_LMaker_Abstract_Addon {
 	}
 
 	public function enqueue_custom_tables( $tables ) {
-		$tables['yoast_seo_meta'] = array( $this, 'process_seo_meta' );
-		$tables['yoast_seo_links'] = array( $this, 'process_seo_links' );
-		$tables['yoast_indexable'] = array( $this, 'process_indexable' );
+		$tables['yoast_seo_meta']            = array( $this, 'process_seo_meta' );
+		$tables['yoast_seo_links']           = array( $this, 'process_seo_links' );
+		$tables['yoast_indexable']           = array( $this, 'process_indexable' );
 		$tables['yoast_indexable_hierarchy'] = array( $this, 'process_indexable_hierarchy' );
-		$tables['yoast_primary_term'] = array( $this, 'process_primary_term' );
+		$tables['yoast_primary_term']        = array( $this, 'process_primary_term' );
 		return $tables;
 	}
 

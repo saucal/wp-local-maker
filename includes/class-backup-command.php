@@ -64,6 +64,24 @@ class Backup_Command extends WP_LMaker_CLI_Command_Base {
 	 * [--verbosity=<level>]
 	 * : Verbosity level. Shorthands available via --v, --vv, --vvv, --vvvv, --vvvvv.
 	 *
+	 * [--limit-posts=<amount>]
+	 * : Limit the amount of posts (post_type=post) to copy. Default 50.
+	 *
+	 * [--limit-attachments=<amount>]
+	 * : Limit the amount of attachments (post_type=attachment) to copy. Default 500.
+	 *
+	 * [--limit-memberships=<amount>]
+	 * : Limit the amount of memberships (post_type=wc_user_membership) to copy. Default 50.
+	 *
+	 * [--limit-subscriptions=<amount>]
+	 * : Limit the amount of subscriptions (post_type=shop_subscription) to copy. Default 50.
+	 *
+	 * [--limit-orders=<amount>]
+	 * : Limit the amount of orders (post_type=shop_order) to copy. Default 50.
+	 *
+	 * [--limit-products=<amount>]
+	 * : Limit the amount of products (post_type=product) to copy. Default PHP_INT_MAX (all products).
+	 *
 	 * [--<field>=<value>]
 	 * : Generic parameter to avoid validation issues.
 	 *
@@ -88,24 +106,23 @@ class Backup_Command extends WP_LMaker_CLI_Command_Base {
 		if ( ! empty( $args[0] ) ) {
 			$result_file = $args[0];
 		} else {
-			$result_file = sprintf( 'WPLM-%s-%s-%s', self::$db_name, date( 'Y-m-d-H-i-s' ), self::$hash );
+			$result_file = sprintf( 'WPLM-%s-%s-%s', self::$db_name, gmdate( 'Y-m-d-H-i-s' ), self::$hash );
 		}
 
 		self::cleanup(); // early cleanup, to cleanup unfinished exports.
-
-		$db_only = WP_CLI\Utils\get_flag_value( $assoc_args, 'db-only', false );
 
 		$target_folder   = untrailingslashit( ABSPATH );
 		$target_url_base = untrailingslashit( site_url( '' ) );
 		$method          = 'fs';
 		if ( defined( 'VIP_GO_ENV' ) ) {
-			WP_CLI::line( 'VIP GO Environment detected. Forcing db-only mode.' );
-			$db_only         = true;
+			WP_CLI::line( 'VIP GO Environment detected. Forcing --db-only and --compat-mode.' );
+			self::set_flag_value( 'db-only', true );
+			self::set_flag_value( 'compat-mode', true );
 			$target_folder   = self::get_uploads_folder_path( 'wplm' );
 			$target_url_base = self::get_uploads_folder_url( 'wplm' );
 		}
 
-		$replace = WP_CLI\Utils\get_flag_value( $assoc_args, 'new-domain', false );
+		$replace = self::get_flag_value( 'new-domain', false );
 		if ( $replace ) {
 			self::$new_domain = $replace;
 			$old_domain       = network_site_url();
@@ -133,7 +150,8 @@ class Backup_Command extends WP_LMaker_CLI_Command_Base {
 			}
 		}
 
-		$zip = WP_CLI\Utils\get_flag_value( $assoc_args, 'zip', true );
+		$zip     = self::get_flag_value( 'zip', true );
+		$db_only = self::get_flag_value( 'db-only', false );
 
 		if ( ! $zip ) {
 			$result_file_tmp = $db_file;
@@ -182,9 +200,13 @@ class Backup_Command extends WP_LMaker_CLI_Command_Base {
 		}
 	}
 
+	/**
+	 * Cleanup previously generated exports.
+	 */
 	public function clean() {
 		$backups_prev = get_option( 'wplm_backups_history', array() );
 		foreach ( $backups_prev as $backup ) {
+			WP_CLI::line( sprintf( 'Cleaning up file %s.', $backup ) );
 			self::maybe_unlink( $backup );
 		}
 		update_option( 'wplm_backups_history', array(), false );
@@ -205,12 +227,21 @@ class Backup_Command extends WP_LMaker_CLI_Command_Base {
 			fclose( $tar_stream );
 			return $moved ? true : false;
 		} else {
-			return rename( $result_file_tmp, $target_file );
+			return rename( $result_file_tmp, $target_file ); // phpcs:ignore WordPressVIPMinimum.Functions.RestrictedFunctions
 		}
 	}
 
 	public static function get_flag_value( $flag, $default = null ) {
 		return WP_CLI\Utils\get_flag_value( self::$current_assoc_args, $flag, $default );
+	}
+	public static function set_flag_value( $flag, $value = true ) {
+		if ( is_null( $value ) ) {
+			if ( isset( self::$current_assoc_args[ $flag ] ) ) {
+				unset( self::$current_assoc_args[ $flag ] );
+			}
+		} else {
+			self::$current_assoc_args[ $flag ] = $value;
+		}
 	}
 
 	public static function verbosity_is( $level ) {
@@ -297,7 +328,7 @@ class Backup_Command extends WP_LMaker_CLI_Command_Base {
 
 	private static function maybe_unlink( $file ) {
 		if ( file_exists( $file ) ) {
-			@unlink( $file );
+			@unlink( $file ); // phpcs:ignore WordPressVIPMinimum.Functions.RestrictedFunctions
 		}
 	}
 
@@ -313,13 +344,13 @@ class Backup_Command extends WP_LMaker_CLI_Command_Base {
 			$str = preg_replace( '/DEFINER=\`.*?\`@\`.*?\`/', '', $str );
 			$str = preg_replace( '/SQL SECURITY DEFINER/', '', $str );
 			$str = preg_replace( '/\/\*\![0-9]+\s*\*\/\n/', '', $str );
-			fputs( $target, $str );
+			fputs( $target, $str ); // phpcs:ignore WordPressVIPMinimum.Functions.RestrictedFunctions
 		}
 
 		fclose( $source );
 		self::maybe_unlink( $file );
 		fclose( $target );
-		rename( $target_name, $file );
+		rename( $target_name, $file ); // phpcs:ignore WordPressVIPMinimum.Functions.RestrictedFunctions
 		return $file;
 	}
 
@@ -580,6 +611,9 @@ class Backup_Command extends WP_LMaker_CLI_Command_Base {
 
 		$global_queue = array();
 
+		$old_blog_id    = get_current_blog_id();
+		$old_network_id = get_current_network_id();
+
 		foreach ( $tables as $table ) {
 
 			list($internal_key, $blog_id) = self::get_table_internal_info( $table );
@@ -605,11 +639,15 @@ class Backup_Command extends WP_LMaker_CLI_Command_Base {
 				continue;
 			}
 
+			$wpdb->set_blog_id( $blog_id, $old_network_id );
+
 			$object_to_append = array(
 				'currname' => $table,
 				'tempname' => self::get_table_name( $internal_key, 'temp' ),
 				'callback' => $tbl_info['callback'],
 			);
+
+			$wpdb->set_blog_id( $old_blog_id, $old_network_id );
 
 			if ( in_array( $internal_key, $global_tables, true ) ) {
 				$global_queue[ $tbl_info['prio'] ] = $object_to_append;
@@ -686,13 +724,13 @@ class Backup_Command extends WP_LMaker_CLI_Command_Base {
 
 		while ( ! feof( $source ) ) {
 			$str = str_replace( $find, $replace, fgets( $source ) );
-			fputs( $target, $str );
+			fputs( $target, $str ); // phpcs:ignore WordPressVIPMinimum.Functions.RestrictedFunctions
 		}
 
 		fclose( $source );
 		self::maybe_unlink( $file );
 		fclose( $target );
-		rename( $target_name, $file );
+		rename( $target_name, $file ); // phpcs:ignore WordPressVIPMinimum.Functions.RestrictedFunctions
 		return $file;
 	}
 

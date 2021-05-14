@@ -156,7 +156,7 @@ class WP_LMaker_WooCommerce extends WP_LMaker_Abstract_Addon {
 			$wpdb->query( 'DROP TABLE wp_related_products_temp ' );
 		}
 
-		$limit = Backup_Command::get_limit_for_tag( 'products', 9999999999 );
+		$limit = Backup_Command::get_limit_for_tag( 'products', PHP_INT_MAX );
 
 		// Handle products
 		$wpdb->query(
@@ -203,12 +203,12 @@ class WP_LMaker_WooCommerce extends WP_LMaker_Abstract_Addon {
 	}
 
 	public function enqueue_process_lookups( $tables ) {
-		$tables['wc_customer_lookup'] = array( $this, 'process_customer_lookup' );
+		$tables['wc_customer_lookup']      = array( $this, 'process_customer_lookup' );
 		$tables['wc_order_product_lookup'] = array( $this, 'process_order_product_lookup' );
-		$tables['wc_order_tax_lookup'] = array( $this, 'process_tax_lookup' );
-		$tables['wc_order_coupon_lookup'] = array( $this, 'process_coupon_lookup' );
-		$tables['wc_order_stats'] = array( $this, 'process_order_stats_lookup' );
-		$tables['wc_product_meta_lookup'] = array( $this, 'process_product_meta_lookup' );
+		$tables['wc_order_tax_lookup']     = array( $this, 'process_tax_lookup' );
+		$tables['wc_order_coupon_lookup']  = array( $this, 'process_coupon_lookup' );
+		$tables['wc_order_stats']          = array( $this, 'process_order_stats_lookup' );
+		$tables['wc_product_meta_lookup']  = array( $this, 'process_product_meta_lookup' );
 		
 		return $tables;
 	}
