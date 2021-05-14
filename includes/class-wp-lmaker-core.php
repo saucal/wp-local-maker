@@ -66,12 +66,26 @@ class WP_LMaker_Core {
 		$ignored_post_types = implode( ',', $ignored_post_types );
 
 		// Export everything but a few known post types
-		$wpdb->query(
-			"REPLACE INTO {$temp}
-			SELECT * FROM {$current} p
+		$post_types = $wpdb->get_col(
+			"SELECT p.post_type FROM {$current} p
 			WHERE p.post_status NOT IN ('auto-draft', 'trash')
-			AND p.post_type NOT IN ( {$ignored_post_types} )"
+			AND p.post_type NOT IN ( {$ignored_post_types} )
+			GROUP BY p.post_type"
 		);
+
+		foreach ( $post_types as $post_type ) {
+			$limit = Backup_Command::get_limit_for_tag( 'post-type-' . $post_type, PHP_INT_MAX );
+
+			// Handle each unhandled post type separately, so that we can limit post type
+			$wpdb->query(
+				"REPLACE INTO {$temp}
+				SELECT * FROM {$current} p
+				WHERE p.post_status NOT IN ('auto-draft', 'trash')
+				AND p.post_type IN ( '{$post_type}' )
+				ORDER BY p.post_date DESC
+				LIMIT {$limit}"
+			);
+		}
 
 		$limit = Backup_Command::get_limit_for_tag( 'posts', 50 );
 
