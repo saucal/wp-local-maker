@@ -64,6 +64,24 @@ class Backup_Command extends WP_LMaker_CLI_Command_Base {
 	 * [--verbosity=<level>]
 	 * : Verbosity level. Shorthands available via --v, --vv, --vvv, --vvvv, --vvvvv.
 	 *
+	 * [--limit-posts=<amount>]
+	 * : Limit the amount of posts (post_type=post) to copy. Default 50.
+	 *
+	 * [--limit-attachments=<amount>]
+	 * : Limit the amount of attachments (post_type=attachment) to copy. Default 500.
+	 *
+	 * [--limit-memberships=<amount>]
+	 * : Limit the amount of memberships (post_type=wc_user_membership) to copy. Default 50.
+	 *
+	 * [--limit-subscriptions=<amount>]
+	 * : Limit the amount of subscriptions (post_type=shop_subscription) to copy. Default 50.
+	 *
+	 * [--limit-orders=<amount>]
+	 * : Limit the amount of orders (post_type=shop_order) to copy. Default 50.
+	 *
+	 * [--limit-products=<amount>]
+	 * : Limit the amount of products (post_type=product) to copy. Default PHP_INT_MAX (all products).
+	 *
 	 * [--<field>=<value>]
 	 * : Generic parameter to avoid validation issues.
 	 *
