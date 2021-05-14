@@ -183,7 +183,7 @@ class WP_LMaker_Core {
 			SELECT * FROM {$current} p
 			WHERE p.post_status NOT IN ('auto-draft', 'trash')
 			AND p.post_type IN ( 'attachment' ) AND p.post_parent = 0
-            ORDER BY p.post_date DESC
+			ORDER BY p.post_date DESC
 			LIMIT {$limit}"
 		);
 
@@ -191,10 +191,10 @@ class WP_LMaker_Core {
 		do {
 			$affected = $wpdb->query(
 				"REPLACE INTO {$temp}
-                SELECT p3.* FROM {$temp} p
-                LEFT JOIN {$temp} p2 ON p2.ID = p.post_parent
-                LEFT JOIN {$current} p3 ON p3.ID = p.post_parent
-                WHERE p.post_parent != 0 AND p2.ID IS NULL AND p3.ID IS NOT NULL"
+				SELECT p3.* FROM {$temp} p
+				LEFT JOIN {$temp} p2 ON p2.ID = p.post_parent
+				LEFT JOIN {$current} p3 ON p3.ID = p.post_parent
+				WHERE p.post_parent != 0 AND p2.ID IS NULL AND p3.ID IS NOT NULL"
 			);
 		} while ( $affected > 0 );
 
@@ -204,7 +204,7 @@ class WP_LMaker_Core {
 			$columns = $wpdb->get_col(
 				$wpdb->prepare(
 					'SELECT column_name
-					FROM information_schema.columns 
+					FROM information_schema.columns
 					WHERE table_schema=%s AND table_name=%s',
 					Backup_Command::$db_name,
 					$temp
@@ -214,7 +214,7 @@ class WP_LMaker_Core {
 			$size_col = "SUM( LENGTH( CONCAT_WS('\", \"', " . implode( ', ', $columns ) . ') ) )';
 			$results  = $wpdb->get_results(
 				"SELECT post_type, COUNT(*) as num, {$size_col} as size
-				FROM {$temp} 
+				FROM {$temp}
 				GROUP BY post_type
 				ORDER BY size DESC"
 			);
@@ -234,13 +234,13 @@ class WP_LMaker_Core {
 			$temp_pm     = $tables_info['postmeta']['tempname'];
 			$temp_p      = $tables_info['posts']['tempname'];
 			$results     = $wpdb->get_results(
-				"SELECT 
-				p.post_type, 
-				COUNT(*) as num, 
-				SUM( LENGTH( meta_value ) ) as size 
-				FROM {$temp_pm} pm 
+				"SELECT
+				p.post_type,
+				COUNT(*) as num,
+				SUM( LENGTH( meta_value ) ) as size
+				FROM {$temp_pm} pm
 				LEFT JOIN {$temp_p} p ON p.ID = pm.post_id
-				GROUP BY p.post_type 
+				GROUP BY p.post_type
 				ORDER BY size DESC"
 			);
 			foreach ( $results as $row ) {
@@ -271,7 +271,7 @@ class WP_LMaker_Core {
 		// Export administrators
 		$wpdb->query(
 			"REPLACE INTO {$temp}
-			SELECT u.* FROM {$current} u 
+			SELECT u.* FROM {$current} u
 			INNER JOIN {$curr_usermeta} um ON um.user_id = u.ID AND um.meta_key = '{$wpdb->prefix}capabilities'
 			WHERE um.meta_value LIKE '%\"administrator\"%'"
 		);
@@ -285,7 +285,7 @@ class WP_LMaker_Core {
 		// Export authors
 		$wpdb->query(
 			"REPLACE INTO {$temp}
-			SELECT u.* FROM {$current} u 
+			SELECT u.* FROM {$current} u
 			INNER JOIN {$temp_posts} p ON p.post_author = u.ID
 			GROUP BY {$user_keys}"
 		);
@@ -306,7 +306,7 @@ class WP_LMaker_Core {
 
 		$wpdb->query(
 			"DELETE FROM {$table_name}
-    		WHERE meta_key = 'session_tokens'"
+			WHERE meta_key = 'session_tokens'"
 		);
 	}
 
@@ -376,12 +376,12 @@ class WP_LMaker_Core {
 
 		if ( Backup_Command::verbosity_is( 2 ) ) {
 			$results = $wpdb->get_results(
-				"SELECT 
-				SUBSTRING( option_name, 1, 10 ) as option_prefix, 
-				COUNT(*) as num, 
+				"SELECT
+				SUBSTRING( option_name, 1, 10 ) as option_prefix,
+				COUNT(*) as num,
 				SUM( LENGTH( option_value ) ) as size
-				FROM {$temp} 
-				GROUP BY option_prefix 
+				FROM {$temp}
+				GROUP BY option_prefix
 				ORDER BY size DESC
 				LIMIT 10"
 			);

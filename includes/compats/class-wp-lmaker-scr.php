@@ -80,7 +80,7 @@ class WP_LMaker_SCR extends WP_LMaker_Abstract_Addon {
 			}
 
 			$wpdb->query(
-				"REPLACE INTO {$this->temp_prefix} 
+				"REPLACE INTO {$this->temp_prefix}
 				SELECT '{$type}', {$blog_id}, ID FROM ( {$sql_where} ) d"
 			);
 		}
