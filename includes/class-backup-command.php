@@ -111,19 +111,18 @@ class Backup_Command extends WP_LMaker_CLI_Command_Base {
 
 		self::cleanup(); // early cleanup, to cleanup unfinished exports.
 
-		$db_only = WP_CLI\Utils\get_flag_value( $assoc_args, 'db-only', false );
-
 		$target_folder   = untrailingslashit( ABSPATH );
 		$target_url_base = untrailingslashit( site_url( '' ) );
 		$method          = 'fs';
 		if ( defined( 'VIP_GO_ENV' ) ) {
-			WP_CLI::line( 'VIP GO Environment detected. Forcing db-only mode.' );
-			$db_only         = true;
+			WP_CLI::line( 'VIP GO Environment detected. Forcing --db-only and --compat-mode.' );
+			self::set_flag_value( 'db-only', true );
+			self::set_flag_value( 'compat-mode', true );
 			$target_folder   = self::get_uploads_folder_path( 'wplm' );
 			$target_url_base = self::get_uploads_folder_url( 'wplm' );
 		}
 
-		$replace = WP_CLI\Utils\get_flag_value( $assoc_args, 'new-domain', false );
+		$replace = self::get_flag_value( 'new-domain', false );
 		if ( $replace ) {
 			self::$new_domain = $replace;
 			$old_domain       = network_site_url();
@@ -151,7 +150,8 @@ class Backup_Command extends WP_LMaker_CLI_Command_Base {
 			}
 		}
 
-		$zip = WP_CLI\Utils\get_flag_value( $assoc_args, 'zip', true );
+		$zip     = self::get_flag_value( 'zip', true );
+		$db_only = self::get_flag_value( 'db-only', false );
 
 		if ( ! $zip ) {
 			$result_file_tmp = $db_file;
@@ -229,6 +229,15 @@ class Backup_Command extends WP_LMaker_CLI_Command_Base {
 
 	public static function get_flag_value( $flag, $default = null ) {
 		return WP_CLI\Utils\get_flag_value( self::$current_assoc_args, $flag, $default );
+	}
+	public static function set_flag_value( $flag, $value = true ) {
+		if ( is_null( $value ) ) {
+			if ( isset( self::$current_assoc_args[ $flag ] ) ) {
+				unset( self::$current_assoc_args[ $flag ] );
+			}
+		} else {
+			self::$current_assoc_args[ $flag ] = $value;
+		}
 	}
 
 	public static function verbosity_is( $level ) {
