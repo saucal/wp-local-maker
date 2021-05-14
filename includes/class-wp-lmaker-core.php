@@ -74,6 +74,26 @@ class WP_LMaker_Core {
 		return $list;
 	}
 
+	private function get_attachment_ids_from_classes( $content ) {
+		$re = '/class=(["\']).*?wp-image-([0-9]+).*?\1/m';
+		preg_match_all( $re, $content, $matches, PREG_SET_ORDER, 0 );
+
+		$list = array();
+
+		if ( empty( $matches ) ) {
+			return $list;
+		}
+
+		foreach ( $matches as $match ) {
+			if ( empty( $match[2] ) ) {
+				continue;
+			}
+			$list[] = intval( $match[2] );
+		}
+
+		return array_unique( $list );
+	}
+
 	public function process_posts() {
 		global $wpdb;
 		$tables_info = Backup_Command::get_tables_names();
@@ -137,6 +157,7 @@ class WP_LMaker_Core {
 		$unattached = array();
 		foreach ( $contents as $content ) {
 			$unattached = array_merge( $unattached, array_map( 'intval', $this->get_block_properties( $content, 'wp:image', 'id' ) ) );
+			$unattached = array_merge( $unattached, $this->get_attachment_ids_from_classes( $content ) );
 		}
 
 		$unattached = array_unique( $unattached );
