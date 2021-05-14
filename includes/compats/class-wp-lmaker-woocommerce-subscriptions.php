@@ -31,11 +31,11 @@ class WP_LMaker_WooCommerce_Subscriptions extends WP_LMaker_Abstract_Addon {
 		// Handle subscriptions
 		$wpdb->query(
 			"REPLACE INTO {$temp}
-            SELECT * FROM {$current} p
-            WHERE p.post_status NOT IN ('auto-draft', 'trash')
-            AND p.post_type IN ( 'shop_subscription' )
-            ORDER BY p.post_date DESC
-            LIMIT {$limit}"
+			SELECT * FROM {$current} p
+			WHERE p.post_status NOT IN ('auto-draft', 'trash')
+			AND p.post_type IN ( 'shop_subscription' )
+			ORDER BY p.post_date DESC
+			LIMIT {$limit}"
 		);
 
 		do_action( 'wp_local_maker_subscriptions_after_subscriptions', $tables_info );
@@ -43,9 +43,9 @@ class WP_LMaker_WooCommerce_Subscriptions extends WP_LMaker_Abstract_Addon {
 		// Handle subscriptions related orders
 		$wpdb->query(
 			"REPLACE INTO {$temp}
-            SELECT p.* FROM {$current} p
-            INNER JOIN {$curr_pm} pm ON p.ID = pm.post_id AND ( pm.meta_key = '_subscription_switch' OR pm.meta_key = '_subscription_renewal' OR pm.meta_key = 'subscription_resubscribe' )
-            WHERE pm.meta_value IN ( SELECT ID FROM {$temp} p2 WHERE p2.post_type = 'shop_subscription' )"
+			SELECT p.* FROM {$current} p
+			INNER JOIN {$curr_pm} pm ON p.ID = pm.post_id AND ( pm.meta_key = '_subscription_switch' OR pm.meta_key = '_subscription_renewal' OR pm.meta_key = 'subscription_resubscribe' )
+			WHERE pm.meta_value IN ( SELECT ID FROM {$temp} p2 WHERE p2.post_type = 'shop_subscription' )"
 		);
 	}
 
@@ -58,9 +58,9 @@ class WP_LMaker_WooCommerce_Subscriptions extends WP_LMaker_Abstract_Addon {
 		// Handle membership related subscriptions
 		$wpdb->query(
 			"REPLACE INTO {$temp}
-            SELECT p.* FROM {$current} p
-            WHERE p.post_status NOT IN ('auto-draft', 'trash')
-			AND p.post_type IN ( 'shop_subscription' ) 
+			SELECT p.* FROM {$current} p
+			WHERE p.post_status NOT IN ('auto-draft', 'trash')
+			AND p.post_type IN ( 'shop_subscription' )
 			AND p.ID IN ( SELECT pm.meta_value FROM {$temp} p2 INNER JOIN {$curr_pm} pm ON p2.ID = pm.post_id AND pm.meta_key = '_subscription_id' WHERE p2.post_type = 'wc_user_membership' )"
 		);
 	}

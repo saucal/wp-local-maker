@@ -110,7 +110,7 @@ class WP_LMaker_WooCommerce extends WP_LMaker_Abstract_Addon {
 
 		// Handle coupons (only copy used)
 		$wpdb->query(
-			"CREATE TEMPORARY TABLE wp_list_temp 
+			"CREATE TEMPORARY TABLE wp_list_temp
 			SELECT oi.order_item_name FROM {$curr_oi} oi
 			WHERE oi.order_id IN ( SELECT ID FROM {$temp} ) AND oi.order_item_type = 'coupon'
 			GROUP BY oi.order_item_name"
@@ -138,10 +138,10 @@ class WP_LMaker_WooCommerce extends WP_LMaker_Abstract_Addon {
 		if ( count( $table_exists ) ) {
 			// Handle products related to copied orders
 			$wpdb->query(
-				"CREATE TEMPORARY TABLE wp_related_products_temp 
+				"CREATE TEMPORARY TABLE wp_related_products_temp
 				SELECT oim.meta_value as product_id FROM {$curr_oim} oim
 				INNER JOIN {$curr_oi} oi ON oi.order_item_id = oim.order_item_id
-				WHERE oi.order_id IN ( SELECT ID FROM {$temp} WHERE post_type = 'shop_order' ) 
+				WHERE oi.order_id IN ( SELECT ID FROM {$temp} WHERE post_type = 'shop_order' )
 				AND oim.meta_key = '_product_id'
 				GROUP BY product_id"
 			);
@@ -179,7 +179,7 @@ class WP_LMaker_WooCommerce extends WP_LMaker_Abstract_Addon {
 		// Export customers
 		$wpdb->query(
 			"REPLACE INTO {$temp}
-			SELECT u.* FROM {$temp_posts} p 
+			SELECT u.* FROM {$temp_posts} p
 			INNER JOIN {$temp_postmeta} pm ON p.ID = pm.post_id AND pm.meta_key = '_customer_user'
 			INNER JOIN {$current} u ON u.ID = pm.meta_value
 			GROUP BY {$user_keys}"

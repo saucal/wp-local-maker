@@ -38,29 +38,29 @@ class WP_LMaker_Yoast_WordPress_SEO extends WP_LMaker_Abstract_Addon {
 		// Handle anything not handled specifically related actions
 		$wpdb->query(
 			"REPLACE INTO {$temp}
-            SELECT * FROM {$current} 
-            WHERE object_type NOT IN ( 'user', 'post', 'term' )"
+			SELECT * FROM {$current}
+			WHERE object_type NOT IN ( 'user', 'post', 'term' )"
 		);
 
 		// Handle users
 		$wpdb->query(
 			"REPLACE INTO {$temp}
-            SELECT * FROM {$current} 
-            WHERE object_type = 'user' AND object_id IN ( SELECT ID FROM {$temp_users} )"
+			SELECT * FROM {$current}
+			WHERE object_type = 'user' AND object_id IN ( SELECT ID FROM {$temp_users} )"
 		);
 
 		// Handle posts
 		$wpdb->query(
 			"REPLACE INTO {$temp}
-            SELECT * FROM {$current} 
-            WHERE object_type = 'post' AND object_id IN ( SELECT ID FROM {$temp_post} )"
+			SELECT * FROM {$current}
+			WHERE object_type = 'post' AND object_id IN ( SELECT ID FROM {$temp_post} )"
 		);
 
 		// Handle terms
 		$wpdb->query(
 			"REPLACE INTO {$temp}
-            SELECT * FROM {$current} 
-            WHERE object_type = 'term' AND object_id IN ( SELECT ID FROM {$temp_terms} )"
+			SELECT * FROM {$current}
+			WHERE object_type = 'term' AND object_id IN ( SELECT ID FROM {$temp_terms} )"
 		);
 
 		$file = Backup_Command::write_table_file( $temp, $current );
