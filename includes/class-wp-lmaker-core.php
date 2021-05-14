@@ -96,9 +96,10 @@ class WP_LMaker_Core {
 
 	public function process_posts() {
 		global $wpdb;
-		$tables_info = Backup_Command::get_tables_names();
-		$current     = $tables_info['posts']['currname'];
-		$temp        = $tables_info['posts']['tempname'];
+		$tables_info  = Backup_Command::get_tables_names();
+		$current      = $tables_info['posts']['currname'];
+		$current_meta = $tables_info['postmeta']['currname'];
+		$temp         = $tables_info['posts']['tempname'];
 
 		$wpdb->query( "CREATE TABLE IF NOT EXISTS {$temp} LIKE {$current}" );
 
@@ -159,6 +160,15 @@ class WP_LMaker_Core {
 			$unattached = array_merge( $unattached, array_map( 'intval', $this->get_block_properties( $content, 'wp:image', 'id' ) ) );
 			$unattached = array_merge( $unattached, $this->get_attachment_ids_from_classes( $content ) );
 		}
+
+		// Handle thumbnail attachments
+		$thumbnail_attachments = $wpdb->get_col(
+			"SELECT m.meta_value FROM {$current_meta} m
+			WHERE m.meta_key = '_thumbnail_id'
+			AND m.post_id IN ( SELECT ID FROM {$temp} p2 )"
+		);
+
+		$unattached = array_merge( $unattached, array_map( 'intval', $thumbnail_attachments ) );
 
 		$unattached = array_unique( $unattached );
 
