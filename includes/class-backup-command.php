@@ -598,6 +598,9 @@ class Backup_Command extends WP_LMaker_CLI_Command_Base {
 
 		$global_queue = array();
 
+		$old_blog_id    = get_current_blog_id();
+		$old_network_id = get_current_network_id();
+
 		foreach ( $tables as $table ) {
 
 			list($internal_key, $blog_id) = self::get_table_internal_info( $table );
@@ -623,11 +626,15 @@ class Backup_Command extends WP_LMaker_CLI_Command_Base {
 				continue;
 			}
 
+			$wpdb->set_blog_id( $blog_id, $old_network_id );
+
 			$object_to_append = array(
 				'currname' => $table,
 				'tempname' => self::get_table_name( $internal_key, 'temp' ),
 				'callback' => $tbl_info['callback'],
 			);
+
+			$wpdb->set_blog_id( $old_blog_id, $old_network_id );
 
 			if ( in_array( $internal_key, $global_tables, true ) ) {
 				$global_queue[ $tbl_info['prio'] ] = $object_to_append;
