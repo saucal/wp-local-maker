@@ -26,7 +26,7 @@ class WP_LMaker_WooCommerce_Subscriptions extends WP_LMaker_Abstract_Addon {
 		$temp    = $tables_info['posts']['tempname'];
 		$curr_pm = $tables_info['postmeta']['currname'];
 
-		$limit = Backup_Command::get_limit_for_tag( 'subscriptions', 50 );
+		$limit = Backup_Command::get_limit_for_tag( array( 'subscriptions', 'post-type-shop_subscription' ), 50 );
 
 		// Handle subscriptions
 		$wpdb->query(

@@ -73,7 +73,7 @@ class WP_LMaker_WooCommerce extends WP_LMaker_Abstract_Addon {
 		$current = $tables_info['posts']['currname'];
 		$temp    = $tables_info['posts']['tempname'];
 
-		$limit = Backup_Command::get_limit_for_tag( 'orders', 50 );
+		$limit = Backup_Command::get_limit_for_tag( array( 'orders', 'post-type-shop_order' ), 50 );
 
 		// Handle orders
 		$wpdb->query(
@@ -156,7 +156,7 @@ class WP_LMaker_WooCommerce extends WP_LMaker_Abstract_Addon {
 			$wpdb->query( 'DROP TABLE wp_related_products_temp ' );
 		}
 
-		$limit = Backup_Command::get_limit_for_tag( 'products', PHP_INT_MAX );
+		$limit = Backup_Command::get_limit_for_tag( array( 'products', 'post-type-product' ), PHP_INT_MAX );
 
 		// Handle products
 		$wpdb->query(
