@@ -51,6 +51,29 @@ class WP_LMaker_Core {
 		return $tables;
 	}
 
+	private function get_block_properties( $content, $block, $property ) {
+		$re = '/<!-- ' . $block . ' ({.*?} )?-->/m';
+		
+		preg_match_all( $re, $content, $matches, PREG_SET_ORDER, 0 );
+
+		$list = array();
+
+		foreach ( $matches as $match ) {
+			if ( empty( $match[1] ) ) {
+				continue;
+			}
+			$props = json_decode( trim( $match[1] ), true );
+			if ( is_null( $props ) ) {
+				continue;
+			}
+			if ( isset( $props[ $property ] ) ) {
+				$list[] = $props[ $property ];
+			}
+		}
+	
+		return $list;
+	}
+
 	public function process_posts() {
 		global $wpdb;
 		$tables_info = Backup_Command::get_tables_names();
@@ -108,6 +131,28 @@ class WP_LMaker_Core {
 			WHERE p.post_status NOT IN ('auto-draft', 'trash')
 			AND p.post_type IN ( 'attachment' ) AND p.post_parent IN ( SELECT ID FROM {$temp} p2 )"
 		);
+
+		// Handle unattached attachments inserted into posts content
+		$contents   = $wpdb->get_col( "SELECT p.post_content FROM {$temp} p" );
+		$unattached = array();
+		foreach ( $contents as $content ) {
+			$unattached = array_merge( $unattached, array_map( 'intval', $this->get_block_properties( $content, 'wp:image', 'id' ) ) );
+		}
+
+		$unattached = array_unique( $unattached );
+
+		if ( ! empty( $unattached ) ) {
+			foreach ( $unattached as $k => $v ) {
+				$unattached[ $k ] = $wpdb->prepare( '%d', $v );
+			}
+			$unattached = implode( ',', $unattached );
+
+			$wpdb->query(
+				"REPLACE INTO {$temp}
+				SELECT * FROM {$current} p
+				WHERE p.ID IN ( {$unattached} )"
+			);
+		}
 
 		$limit = Backup_Command::get_limit_for_tag( array( 'attachments', 'post-type-attachment' ), 500 );
 
