@@ -25,7 +25,7 @@ class WP_LMaker_WooCommerce_Memberships extends WP_LMaker_Abstract_Addon {
 		$current = $tables_info['posts']['currname'];
 		$temp    = $tables_info['posts']['tempname'];
 
-		$limit = Backup_Command::get_limit_for_tag( 'memberships', 50 );
+		$limit = Backup_Command::get_limit_for_tag( array( 'memberships', 'post-type-wc_user_membership' ), 50 );
 
 		// Handle memberships
 		$wpdb->query(

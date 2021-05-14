@@ -87,7 +87,7 @@ class WP_LMaker_Core {
 			);
 		}
 
-		$limit = Backup_Command::get_limit_for_tag( 'posts', 50 );
+		$limit = Backup_Command::get_limit_for_tag( array( 'posts', 'post-type-post' ), 50 );
 
 		// Handle posts
 		$wpdb->query(
@@ -109,7 +109,7 @@ class WP_LMaker_Core {
 			AND p.post_type IN ( 'attachment' ) AND p.post_parent IN ( SELECT ID FROM {$temp} p2 )"
 		);
 
-		$limit = Backup_Command::get_limit_for_tag( 'attachments', 500 );
+		$limit = Backup_Command::get_limit_for_tag( array( 'attachments', 'post-type-attachment' ), 500 );
 
 		// Handle unrelated attachments
 		$wpdb->query(

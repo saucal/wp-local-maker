@@ -265,12 +265,23 @@ class Backup_Command extends WP_LMaker_CLI_Command_Base {
 		return 0;
 	}
 
-	public static function get_limit_for_tag( $tag, $default = null ) {
-		$limit = self::get_flag_value( 'limit-' . $tag, false );
-		if ( false !== $limit ) {
-			return intval( $limit );
+	public static function get_limit_for_tag( $tags, $default = null ) {
+		if ( ! is_array( $tags ) ) {
+			$tags = array( $tags );
 		}
-		$limit = apply_filters( 'wp_local_maker_limit_' . $tag, $default );
+		$limit = null;
+		foreach ( $tags as $tag ) {
+			$this_limit = self::get_flag_value( 'limit-' . $tag, false );
+			if ( false !== $this_limit ) {
+				$limit = intval( $this_limit );
+				break;
+			}
+		}
+		if ( is_null( $limit ) ) {
+			$limit = $default;
+			$tag   = $tags[0];
+		}
+		$limit = apply_filters( 'wp_local_maker_limit_' . $tag, $limit );
 		return intval( $limit );
 	}
 
