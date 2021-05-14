@@ -88,7 +88,7 @@ class Backup_Command extends WP_LMaker_CLI_Command_Base {
 		if ( ! empty( $args[0] ) ) {
 			$result_file = $args[0];
 		} else {
-			$result_file = sprintf( 'WPLM-%s-%s-%s', self::$db_name, date( 'Y-m-d-H-i-s' ), self::$hash );
+			$result_file = sprintf( 'WPLM-%s-%s-%s', self::$db_name, gmdate( 'Y-m-d-H-i-s' ), self::$hash );
 		}
 
 		self::cleanup(); // early cleanup, to cleanup unfinished exports.
@@ -205,7 +205,7 @@ class Backup_Command extends WP_LMaker_CLI_Command_Base {
 			fclose( $tar_stream );
 			return $moved ? true : false;
 		} else {
-			return rename( $result_file_tmp, $target_file );
+			return rename( $result_file_tmp, $target_file ); // phpcs:ignore WordPressVIPMinimum.Functions.RestrictedFunctions
 		}
 	}
 
@@ -297,7 +297,7 @@ class Backup_Command extends WP_LMaker_CLI_Command_Base {
 
 	private static function maybe_unlink( $file ) {
 		if ( file_exists( $file ) ) {
-			@unlink( $file );
+			@unlink( $file ); // phpcs:ignore WordPressVIPMinimum.Functions.RestrictedFunctions
 		}
 	}
 
@@ -313,13 +313,13 @@ class Backup_Command extends WP_LMaker_CLI_Command_Base {
 			$str = preg_replace( '/DEFINER=\`.*?\`@\`.*?\`/', '', $str );
 			$str = preg_replace( '/SQL SECURITY DEFINER/', '', $str );
 			$str = preg_replace( '/\/\*\![0-9]+\s*\*\/\n/', '', $str );
-			fputs( $target, $str );
+			fputs( $target, $str ); // phpcs:ignore WordPressVIPMinimum.Functions.RestrictedFunctions
 		}
 
 		fclose( $source );
 		self::maybe_unlink( $file );
 		fclose( $target );
-		rename( $target_name, $file );
+		rename( $target_name, $file ); // phpcs:ignore WordPressVIPMinimum.Functions.RestrictedFunctions
 		return $file;
 	}
 
@@ -686,13 +686,13 @@ class Backup_Command extends WP_LMaker_CLI_Command_Base {
 
 		while ( ! feof( $source ) ) {
 			$str = str_replace( $find, $replace, fgets( $source ) );
-			fputs( $target, $str );
+			fputs( $target, $str ); // phpcs:ignore WordPressVIPMinimum.Functions.RestrictedFunctions
 		}
 
 		fclose( $source );
 		self::maybe_unlink( $file );
 		fclose( $target );
-		rename( $target_name, $file );
+		rename( $target_name, $file ); // phpcs:ignore WordPressVIPMinimum.Functions.RestrictedFunctions
 		return $file;
 	}
 
