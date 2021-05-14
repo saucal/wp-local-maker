@@ -156,7 +156,7 @@ class WP_LMaker_WooCommerce extends WP_LMaker_Abstract_Addon {
 			$wpdb->query( 'DROP TABLE wp_related_products_temp ' );
 		}
 
-		$limit = Backup_Command::get_limit_for_tag( 'products', 9999999999 );
+		$limit = Backup_Command::get_limit_for_tag( 'products', PHP_INT_MAX );
 
 		// Handle products
 		$wpdb->query(
