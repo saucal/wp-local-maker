@@ -10,9 +10,9 @@ class WP_LMaker_OAuth_Server extends WP_LMaker_Abstract_Addon {
 	}
 
 	public function enqueue_custom_tables( $tables ) {
-		$tables['oauth_access_tokens'] = array( $this, 'process_access_tokens' );
+		$tables['oauth_access_tokens']       = array( $this, 'process_access_tokens' );
 		$tables['oauth_authorization_codes'] = array( $this, 'process_authorization_codes' );
-		$tables['oauth_refresh_tokens'] = array( $this, 'process_refresh_tokens' );
+		$tables['oauth_refresh_tokens']      = array( $this, 'process_refresh_tokens' );
 		return $tables;
 	}
 

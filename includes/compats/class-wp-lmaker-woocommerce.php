@@ -203,12 +203,12 @@ class WP_LMaker_WooCommerce extends WP_LMaker_Abstract_Addon {
 	}
 
 	public function enqueue_process_lookups( $tables ) {
-		$tables['wc_customer_lookup'] = array( $this, 'process_customer_lookup' );
+		$tables['wc_customer_lookup']      = array( $this, 'process_customer_lookup' );
 		$tables['wc_order_product_lookup'] = array( $this, 'process_order_product_lookup' );
-		$tables['wc_order_tax_lookup'] = array( $this, 'process_tax_lookup' );
-		$tables['wc_order_coupon_lookup'] = array( $this, 'process_coupon_lookup' );
-		$tables['wc_order_stats'] = array( $this, 'process_order_stats_lookup' );
-		$tables['wc_product_meta_lookup'] = array( $this, 'process_product_meta_lookup' );
+		$tables['wc_order_tax_lookup']     = array( $this, 'process_tax_lookup' );
+		$tables['wc_order_coupon_lookup']  = array( $this, 'process_coupon_lookup' );
+		$tables['wc_order_stats']          = array( $this, 'process_order_stats_lookup' );
+		$tables['wc_product_meta_lookup']  = array( $this, 'process_product_meta_lookup' );
 		
 		return $tables;
 	}
