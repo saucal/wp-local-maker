@@ -35,6 +35,8 @@ class Backup_Command extends WP_LMaker_CLI_Command_Base {
 
 	protected static $start_time = null;
 
+	protected static $table_names_by_site = array();
+
 	public static $db_name = '';
 
 	protected function init_deps() {
@@ -474,6 +476,10 @@ class Backup_Command extends WP_LMaker_CLI_Command_Base {
 	}
 
 	public static function get_tables_names() {
+		$blog_id = get_current_blog_id();
+		if ( isset( self::$table_names_by_site[ $blog_id ] ) ) {
+			return self::$table_names_by_site[ $blog_id ];
+		}
 		$tables_info = self::get_tables_info();
 		foreach ( array_keys( $tables_info ) as $table ) {
 			$new_info              = array(
@@ -482,6 +488,7 @@ class Backup_Command extends WP_LMaker_CLI_Command_Base {
 			);
 			$tables_info[ $table ] = $new_info;
 		}
+		self::$table_names_by_site[ $blog_id ] = $tables_info;
 		return $tables_info;
 	}
 
