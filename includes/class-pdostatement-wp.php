@@ -1,5 +1,5 @@
 <?php
-class PDOStatement implements Iterator {
+class PDOStatement_WP implements Iterator {
 	private $query          = '';
 	private $query_clean    = '';
 	private $page_size      = 1000;
@@ -9,7 +9,7 @@ class PDOStatement implements Iterator {
 	private $current_key    = 0;
 	private $current_page   = 0;
 	private $prev_keys      = 0;
-	private $fetch_mode     = PDO::FETCH_ASSOC; // phpcs:ignore
+	private $fetch_mode     = PDO_WP::FETCH_ASSOC; // phpcs:ignore
 
 	public function __construct( $sql ) {
 		$this->query       = trim( $sql, " \t\n\r\0\x0B;" );
@@ -94,13 +94,13 @@ class PDOStatement implements Iterator {
 		}
 		$mode = null;
 		switch ( $this->fetch_mode ) {
-			case PDO::FETCH_ASSOC: // phpcs:ignore
+			case PDO_WP::FETCH_ASSOC: // phpcs:ignore
 				$mode = ARRAY_A;
 				break;
-			case PDO::FETCH_NUM: // phpcs:ignore
+			case PDO_WP::FETCH_NUM: // phpcs:ignore
 				$mode = ARRAY_N;
 				break;
-			case PDO::FETCH_OBJ: // phpcs:ignore
+			case PDO_WP::FETCH_OBJ: // phpcs:ignore
 				$mode = OBJECT;
 				break;
 			default:

@@ -1,6 +1,6 @@
 <?php
-require_once __DIR__ . '/class-pdostatement.php';
-class PDO {
+require_once __DIR__ . '/class-pdostatement-wp.php';
+class PDO_WP {
 	const ATTR_PERSISTENT               = 12;
 	const ATTR_ERRMODE                  = 3;
 	const ERRMODE_EXCEPTION             = 2;
@@ -17,7 +17,7 @@ class PDO {
 	}
 
 	public function query( $sql ) {
-		return new PDOStatement( $sql ); // phpcs:ignore
+		return new PDOStatement_WP( $sql ); // phpcs:ignore
 	}
 
 	public function exec( $query ) {

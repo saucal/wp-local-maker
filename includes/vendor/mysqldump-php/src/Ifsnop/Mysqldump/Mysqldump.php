@@ -16,7 +16,7 @@
 namespace Ifsnop\Mysqldump;
 
 use Exception;
-use PDO;
+use PDO_WP;
 use PDOException;
 
 /**
@@ -169,8 +169,8 @@ class Mysqldump
         );
 
         $pdoSettingsDefault = array(
-            PDO::ATTR_PERSISTENT => true,
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO_WP::ATTR_PERSISTENT => true,
+            PDO_WP::ATTR_ERRMODE => PDO_WP::ERRMODE_EXCEPTION,
         );
 
         $this->user = $user;
@@ -179,7 +179,7 @@ class Mysqldump
 
         // This drops MYSQL dependency, only use the constant if it's defined.
         if ("mysql" === $this->dbType) {
-            $pdoSettingsDefault[PDO::MYSQL_ATTR_USE_BUFFERED_QUERY] = false;
+            $pdoSettingsDefault[PDO_WP::MYSQL_ATTR_USE_BUFFERED_QUERY] = false;
         }
 
         $this->pdoSettings = self::array_replace_recursive($pdoSettingsDefault, $pdoSettings);
@@ -356,12 +356,12 @@ class Mysqldump
         try {
             switch ($this->dbType) {
                 case 'sqlite':
-                    $this->dbHandler = @new PDO("sqlite:".$this->dbName, null, null, $this->pdoSettings);
+                    $this->dbHandler = @new PDO_WP("sqlite:".$this->dbName, null, null, $this->pdoSettings);
                     break;
                 case 'mysql':
                 case 'pgsql':
                 case 'dblib':
-                    $this->dbHandler = @new PDO(
+                    $this->dbHandler = @new PDO_WP(
                         $this->dsn,
                         $this->user,
                         $this->pass,
@@ -372,7 +372,7 @@ class Mysqldump
                         $this->dbHandler->exec($stmt);
                     }
                     // Store server version
-                    $this->version = $this->dbHandler->getAttribute(PDO::ATTR_SERVER_VERSION);
+                    $this->version = $this->dbHandler->getAttribute(PDO_WP::ATTR_SERVER_VERSION);
                     break;
                 default:
                     throw new Exception("Unsupported database type (".$this->dbType.")");
@@ -388,7 +388,7 @@ class Mysqldump
             throw new Exception("Connection to ".$this->dbType."failed");
         }
 
-        $this->dbHandler->setAttribute(PDO::ATTR_ORACLE_NULLS, PDO::NULL_NATURAL);
+        $this->dbHandler->setAttribute(PDO_WP::ATTR_ORACLE_NULLS, PDO_WP::NULL_NATURAL);
         $this->typeAdapter = TypeAdapterFactory::create($this->dbType, $this->dbHandler, $this->dumpSettings);
     }
 
@@ -818,7 +818,7 @@ class Mysqldump
         $columns = $this->dbHandler->query(
             $this->typeAdapter->show_columns($tableName)
         );
-        $columns->setFetchMode(PDO::FETCH_ASSOC);
+        $columns->setFetchMode(PDO_WP::FETCH_ASSOC);
 
         foreach ($columns as $key => $col) {
             $types = $this->typeAdapter->parseColumnType($col);
@@ -1138,7 +1138,7 @@ class Mysqldump
         }
 
         $resultSet = $this->dbHandler->query($stmt);
-        $resultSet->setFetchMode(PDO::FETCH_ASSOC);
+        $resultSet->setFetchMode(PDO_WP::FETCH_ASSOC);
 
         $ignore = $this->dumpSettings['insert-ignore'] ? '  IGNORE' : '';
 
@@ -1547,7 +1547,7 @@ abstract class TypeAdapterFactory
 
     /**
      * @param string $c Type of database factory to create (Mysql, Sqlite,...)
-     * @param PDO $dbHandler
+     * @param PDO_WP $dbHandler
      */
     public static function create($c, $dbHandler = null, $dumpSettings = array())
     {

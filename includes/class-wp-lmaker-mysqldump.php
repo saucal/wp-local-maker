@@ -18,16 +18,7 @@ class WP_LMaker_MySQLDump {
 		$host = defined( 'DB_HOST' ) ? DB_HOST : 'noop';
 		$user = defined( 'DB_USER' ) ? DB_USER : 'noop';
 		$pass = defined( 'DB_PASSWORD' ) ? DB_PASSWORD : 'noop';
-		if ( ! class_exists( 'PDO' ) ) {
-			global $wpdb;
-			WP_CLI::line( 'Loading PDO WP Polyfill' );
-			require_once __DIR__ . '/class-pdo.php';
-		} else {
-			if ( is_a( $wpdb, 'hyperdb' ) ) {
-				// phpcs:ignore
-				trigger_error( 'mysqldump-php uses PDO, but its not fully compatible with your hyperdb configuration. Please disable PDO so that WP Local Maker can load a polyfill.', E_USER_ERROR );
-			}
-		}
+		require_once __DIR__ . '/class-pdo-wp.php';
 		require_once __DIR__ . '/vendor/mysqldump-php/src/Ifsnop/Mysqldump/Mysqldump.php';
 		if ( isset( $settings['tables'] ) ) {
 			$settings['include-tables'] = $settings['tables'];
