@@ -100,7 +100,13 @@ class Backup_Command extends WP_LMaker_CLI_Command_Base {
 
 		global $wpdb;
 		if ( is_a( $wpdb, 'hyperdb' ) ) {
-			$wpdb->add_callback( array( $this, '__hyperdb_force_master' ) );
+			if ( is_callable( array( $wpdb, 'send_reads_to_masters' ) ) ) {
+				WP_CLI::line( 'HyperDB detected. Forcing to read from masters.' );
+				$wpdb->send_reads_to_masters();
+			} else {
+				WP_CLI::line( 'HyperDB detected. Forcing to read from masters (legacy support).' );
+				$wpdb->add_callback( array( $this, '__hyperdb_force_master' ) );
+			}
 		}
 
 		self::$db_name = $wpdb->get_var( 'SELECT DATABASE()' );
@@ -561,13 +567,33 @@ class Backup_Command extends WP_LMaker_CLI_Command_Base {
 		return $file;
 	}
 
-	public static function dependant_table_dump( $current_index, $after = '' ) {
+	private static function run_callbacks( $key, $callbacks = array() ) {
+		if ( isset( $callbacks[ $key ] ) ) {
+			if ( ! is_array( $callbacks[ $key ] ) ) {
+				$callbacks[ $key ] = array( $callbacks[ $key ] );
+			}
+
+			foreach ( $callbacks[ $key ] as $cb ) {
+				if ( ! is_callable( $cb ) ) {
+					continue;
+				}
+
+				call_user_func( $cb );
+			}
+		}
+	}
+
+	public static function dependant_table_dump( $current_index, $after = '', $callbacks = array() ) {
 		global $wpdb;
 		$tables_info = self::get_tables_names();
 		$current     = $tables_info[ $current_index ]['currname'];
 		$temp        = $tables_info[ $current_index ]['tempname'];
 
+		self::run_callbacks( 'before_creating_table', $callbacks );
+
 		$wpdb->query( "CREATE TABLE IF NOT EXISTS {$temp} LIKE {$current}" );
+
+		self::run_callbacks( 'before_filtering', $callbacks );
 
 		$query = "REPLACE INTO {$temp} SELECT * FROM {$current} p";
 		if ( $after ) {
@@ -576,15 +602,17 @@ class Backup_Command extends WP_LMaker_CLI_Command_Base {
 
 		$wpdb->query( $query );
 
+		self::run_callbacks( 'before_dumping', $callbacks );
+
 		$file = self::write_table_file( $temp, $current );
 
 		return $file;
 	}
 
-	public static function dependant_table_dump_single( $current, $dependant, $current_key, $dependant_key ) {
+	public static function dependant_table_dump_single( $current, $dependant, $current_key, $dependant_key, $callbacks = array() ) {
 		$tables_info = self::get_tables_names();
 		$temp_posts  = $tables_info[ $dependant ]['tempname'];
-		return self::dependant_table_dump( $current, "WHERE p.{$current_key} IN ( SELECT {$dependant_key} FROM {$temp_posts} p2 GROUP BY {$dependant_key} )" );
+		return self::dependant_table_dump( $current, "WHERE p.{$current_key} IN ( SELECT {$dependant_key} FROM {$temp_posts} p2 GROUP BY {$dependant_key} )", $callbacks );
 	}
 
 	public static function get_table_keys_group( $table, $prefix = '' ) {
@@ -775,13 +803,17 @@ class Backup_Command extends WP_LMaker_CLI_Command_Base {
 	protected static function cleanup() {
 		global $wpdb;
 		$tables = $wpdb->get_col( "SHOW TABLES LIKE '_WPLM%'" );
-		foreach ( $tables as $table ) {
+		if ( ! empty( $tables ) ) {
 			if ( self::verbosity_is( 5 ) ) {
-				WP_CLI::line( "Removing temporary table {$table}." );
+				WP_CLI::line( 'Removing temporary tables:' );
+				foreach ( $tables as $table ) {
+					WP_CLI::line( "  {$table}" );
+				}
 			}
-			$wpdb->query( "DROP TABLE IF EXISTS {$table}" );
+			$tables = implode( ', ', $tables );
+			$wpdb->query( "DROP TABLE IF EXISTS {$tables}" );
 			if ( self::verbosity_is( 4 ) ) {
-				WP_CLI::line( "Removed temporary table {$table}." );
+				WP_CLI::line( 'Removed all temporary tables.' );
 			}
 		}
 		self::$new_domain     = self::$old_domain = false; // phpcs:ignore Squiz.PHP.DisallowMultipleAssignments

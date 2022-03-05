@@ -208,8 +208,6 @@ class WP_LMaker_Core {
 			);
 		} while ( $affected > 0 );
 
-		$file = Backup_Command::write_table_file( $temp, $current );
-
 		if ( Backup_Command::verbosity_is( 2 ) ) {
 			$columns = $wpdb->get_col(
 				$wpdb->prepare(
@@ -229,34 +227,46 @@ class WP_LMaker_Core {
 				ORDER BY size DESC"
 			);
 			foreach ( $results as $row ) {
-				WP_CLI::line( sprintf( '  Including %s %s posts, which is %s of data', $row->num, $row->post_type, size_format( $row->size ) ) );
+				WP_CLI::line( sprintf( '  Included %s %s posts, which is %s of data', $row->num, $row->post_type, size_format( $row->size ) ) );
 			}
 		}
+
+		$file = Backup_Command::write_table_file( $temp, $current );
 
 		return $file;
 	}
 
 	public function process_postmeta() {
-		global $wpdb;
-		$result = Backup_Command::dependant_table_dump_single( 'postmeta', 'posts', 'post_id', 'ID' );
-		if ( Backup_Command::verbosity_is( 2 ) ) {
-			$tables_info = Backup_Command::get_tables_names();
-			$temp_pm     = $tables_info['postmeta']['tempname'];
-			$temp_p      = $tables_info['posts']['tempname'];
-			$results     = $wpdb->get_results(
-				"SELECT
-				p.post_type,
-				COUNT(*) as num,
-				SUM( LENGTH( meta_value ) ) as size
-				FROM {$temp_pm} pm
-				LEFT JOIN {$temp_p} p ON p.ID = pm.post_id
-				GROUP BY p.post_type
-				ORDER BY size DESC"
-			);
-			foreach ( $results as $row ) {
-				WP_CLI::line( sprintf( '  Including %s meta rows related to %s posts, which is %s of data', $row->num, $row->post_type, size_format( $row->size ) ) );
-			}
-		}
+
+		$result = Backup_Command::dependant_table_dump_single(
+			'postmeta',
+			'posts',
+			'post_id',
+			'ID',
+			array(
+				'before_dumping' => function() {
+					global $wpdb;
+					if ( Backup_Command::verbosity_is( 2 ) ) {
+						$tables_info = Backup_Command::get_tables_names();
+						$temp_pm     = $tables_info['postmeta']['tempname'];
+						$temp_p      = $tables_info['posts']['tempname'];
+						$results     = $wpdb->get_results(
+							"SELECT
+						p.post_type,
+						COUNT(*) as num,
+						SUM( LENGTH( meta_value ) ) as size
+						FROM {$temp_pm} pm
+						LEFT JOIN {$temp_p} p ON p.ID = pm.post_id
+						GROUP BY p.post_type
+						ORDER BY size DESC"
+						);
+						foreach ( $results as $row ) {
+							WP_CLI::line( sprintf( '  Included %s meta rows related to %s posts, which is %s of data', $row->num, $row->post_type, size_format( $row->size ) ) );
+						}
+					}
+				},
+			) 
+		);
 
 		return $result;
 	}
@@ -382,8 +392,6 @@ class WP_LMaker_Core {
 			WHERE option_name NOT LIKE '\_transient%' AND option_name NOT LIKE '\_site\_transient%'"
 		);
 
-		$file = Backup_Command::write_table_file( $temp, $current );
-
 		if ( Backup_Command::verbosity_is( 2 ) ) {
 			$results = $wpdb->get_results(
 				"SELECT
@@ -396,9 +404,11 @@ class WP_LMaker_Core {
 				LIMIT 10"
 			);
 			foreach ( $results as $row ) {
-				WP_CLI::line( sprintf( '  Including %s options prefixed %s, which is %s of data', $row->num, "'{$row->option_prefix}%'", size_format( $row->size ) ) );
+				WP_CLI::line( sprintf( '  Included %s options prefixed %s, which is %s of data', $row->num, "'{$row->option_prefix}%'", size_format( $row->size ) ) );
 			}
 		}
+
+		$file = Backup_Command::write_table_file( $temp, $current );
 
 		return $file;
 	}
