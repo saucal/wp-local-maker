@@ -781,13 +781,17 @@ class Backup_Command extends WP_LMaker_CLI_Command_Base {
 	protected static function cleanup() {
 		global $wpdb;
 		$tables = $wpdb->get_col( "SHOW TABLES LIKE '_WPLM%'" );
-		foreach ( $tables as $table ) {
+		if ( ! empty( $tables ) ) {
 			if ( self::verbosity_is( 5 ) ) {
-				WP_CLI::line( "Removing temporary table {$table}." );
+				WP_CLI::line( 'Removing temporary tables:' );
+				foreach ( $tables as $table ) {
+					WP_CLI::line( "  {$table}" );
+				}
 			}
-			$wpdb->query( "DROP TABLE IF EXISTS {$table}" );
+			$tables = implode( ', ', $tables );
+			$wpdb->query( "DROP TABLE IF EXISTS {$tables}" );
 			if ( self::verbosity_is( 4 ) ) {
-				WP_CLI::line( "Removed temporary table {$table}." );
+				WP_CLI::line( 'Removed all temporary tables.' );
 			}
 		}
 		self::$new_domain     = self::$old_domain = false; // phpcs:ignore Squiz.PHP.DisallowMultipleAssignments
