@@ -567,13 +567,33 @@ class Backup_Command extends WP_LMaker_CLI_Command_Base {
 		return $file;
 	}
 
-	public static function dependant_table_dump( $current_index, $after = '' ) {
+	private static function run_callbacks( $key, $callbacks = array() ) {
+		if ( isset( $callbacks[ $key ] ) ) {
+			if ( ! is_array( $callbacks[ $key ] ) ) {
+				$callbacks[ $key ] = array( $callbacks[ $key ] );
+			}
+
+			foreach ( $callbacks[ $key ] as $cb ) {
+				if ( ! is_callable( $cb ) ) {
+					continue;
+				}
+
+				call_user_func( $cb );
+			}
+		}
+	}
+
+	public static function dependant_table_dump( $current_index, $after = '', $callbacks = array() ) {
 		global $wpdb;
 		$tables_info = self::get_tables_names();
 		$current     = $tables_info[ $current_index ]['currname'];
 		$temp        = $tables_info[ $current_index ]['tempname'];
 
+		self::run_callbacks( 'before_creating_table', $callbacks );
+
 		$wpdb->query( "CREATE TABLE IF NOT EXISTS {$temp} LIKE {$current}" );
+
+		self::run_callbacks( 'before_filtering', $callbacks );
 
 		$query = "REPLACE INTO {$temp} SELECT * FROM {$current} p";
 		if ( $after ) {
@@ -582,15 +602,17 @@ class Backup_Command extends WP_LMaker_CLI_Command_Base {
 
 		$wpdb->query( $query );
 
+		self::run_callbacks( 'before_dumping', $callbacks );
+
 		$file = self::write_table_file( $temp, $current );
 
 		return $file;
 	}
 
-	public static function dependant_table_dump_single( $current, $dependant, $current_key, $dependant_key ) {
+	public static function dependant_table_dump_single( $current, $dependant, $current_key, $dependant_key, $callbacks = array() ) {
 		$tables_info = self::get_tables_names();
 		$temp_posts  = $tables_info[ $dependant ]['tempname'];
-		return self::dependant_table_dump( $current, "WHERE p.{$current_key} IN ( SELECT {$dependant_key} FROM {$temp_posts} p2 GROUP BY {$dependant_key} )" );
+		return self::dependant_table_dump( $current, "WHERE p.{$current_key} IN ( SELECT {$dependant_key} FROM {$temp_posts} p2 GROUP BY {$dependant_key} )", $callbacks );
 	}
 
 	public static function get_table_keys_group( $table, $prefix = '' ) {
