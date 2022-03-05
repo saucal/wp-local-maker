@@ -100,7 +100,13 @@ class Backup_Command extends WP_LMaker_CLI_Command_Base {
 
 		global $wpdb;
 		if ( is_a( $wpdb, 'hyperdb' ) ) {
-			$wpdb->add_callback( array( $this, '__hyperdb_force_master' ) );
+			if ( is_callable( array( $wpdb, 'send_reads_to_masters' ) ) ) {
+				WP_CLI::line( 'HyperDB detected. Forcing to read from masters.' );
+				$wpdb->send_reads_to_masters();
+			} else {
+				WP_CLI::line( 'HyperDB detected. Forcing to read from masters (legacy support).' );
+				$wpdb->add_callback( array( $this, '__hyperdb_force_master' ) );
+			}
 		}
 
 		self::$db_name = $wpdb->get_var( 'SELECT DATABASE()' );
