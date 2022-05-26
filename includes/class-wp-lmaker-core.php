@@ -51,11 +51,55 @@ class WP_LMaker_Core {
 		return $tables;
 	}
 
+	private function get_block_properties( $content, $block, $property ) {
+		$re = '/<!-- ' . $block . ' ({.*?} )?-->/m';
+		
+		preg_match_all( $re, $content, $matches, PREG_SET_ORDER, 0 );
+
+		$list = array();
+
+		foreach ( $matches as $match ) {
+			if ( empty( $match[1] ) ) {
+				continue;
+			}
+			$props = json_decode( trim( $match[1] ), true );
+			if ( is_null( $props ) ) {
+				continue;
+			}
+			if ( isset( $props[ $property ] ) ) {
+				$list[] = $props[ $property ];
+			}
+		}
+	
+		return $list;
+	}
+
+	private function get_attachment_ids_from_classes( $content ) {
+		$re = '/class=(["\']).*?wp-image-([0-9]+).*?\1/m';
+		preg_match_all( $re, $content, $matches, PREG_SET_ORDER, 0 );
+
+		$list = array();
+
+		if ( empty( $matches ) ) {
+			return $list;
+		}
+
+		foreach ( $matches as $match ) {
+			if ( empty( $match[2] ) ) {
+				continue;
+			}
+			$list[] = intval( $match[2] );
+		}
+
+		return array_unique( $list );
+	}
+
 	public function process_posts() {
 		global $wpdb;
-		$tables_info = Backup_Command::get_tables_names();
-		$current     = $tables_info['posts']['currname'];
-		$temp        = $tables_info['posts']['tempname'];
+		$tables_info  = Backup_Command::get_tables_names();
+		$current      = $tables_info['posts']['currname'];
+		$current_meta = $tables_info['postmeta']['currname'];
+		$temp         = $tables_info['posts']['tempname'];
 
 		$wpdb->query( "CREATE TABLE IF NOT EXISTS {$temp} LIKE {$current}" );
 
@@ -66,14 +110,28 @@ class WP_LMaker_Core {
 		$ignored_post_types = implode( ',', $ignored_post_types );
 
 		// Export everything but a few known post types
-		$wpdb->query(
-			"REPLACE INTO {$temp}
-			SELECT * FROM {$current} p
+		$post_types = $wpdb->get_col(
+			"SELECT p.post_type FROM {$current} p
 			WHERE p.post_status NOT IN ('auto-draft', 'trash')
-			AND p.post_type NOT IN ( {$ignored_post_types} )"
+			AND p.post_type NOT IN ( {$ignored_post_types} )
+			GROUP BY p.post_type"
 		);
 
-		$limit = Backup_Command::get_limit_for_tag( 'posts', 50 );
+		foreach ( $post_types as $post_type ) {
+			$limit = Backup_Command::get_limit_for_tag( 'post-type-' . $post_type, PHP_INT_MAX );
+
+			// Handle each unhandled post type separately, so that we can limit post type
+			$wpdb->query(
+				"REPLACE INTO {$temp}
+				SELECT * FROM {$current} p
+				WHERE p.post_status NOT IN ('auto-draft', 'trash')
+				AND p.post_type IN ( '{$post_type}' )
+				ORDER BY p.post_date DESC
+				LIMIT {$limit}"
+			);
+		}
+
+		$limit = Backup_Command::get_limit_for_tag( array( 'posts', 'post-type-post' ), 50 );
 
 		// Handle posts
 		$wpdb->query(
@@ -95,7 +153,39 @@ class WP_LMaker_Core {
 			AND p.post_type IN ( 'attachment' ) AND p.post_parent IN ( SELECT ID FROM {$temp} p2 )"
 		);
 
-		$limit = Backup_Command::get_limit_for_tag( 'attachments', 500 );
+		// Handle unattached attachments inserted into posts content
+		$contents   = $wpdb->get_col( "SELECT p.post_content FROM {$temp} p" );
+		$unattached = array();
+		foreach ( $contents as $content ) {
+			$unattached = array_merge( $unattached, array_map( 'intval', $this->get_block_properties( $content, 'wp:image', 'id' ) ) );
+			$unattached = array_merge( $unattached, $this->get_attachment_ids_from_classes( $content ) );
+		}
+
+		// Handle thumbnail attachments
+		$thumbnail_attachments = $wpdb->get_col(
+			"SELECT m.meta_value FROM {$current_meta} m
+			WHERE m.meta_key = '_thumbnail_id'
+			AND m.post_id IN ( SELECT ID FROM {$temp} p2 )"
+		);
+
+		$unattached = array_merge( $unattached, array_map( 'intval', $thumbnail_attachments ) );
+
+		$unattached = array_unique( $unattached );
+
+		if ( ! empty( $unattached ) ) {
+			foreach ( $unattached as $k => $v ) {
+				$unattached[ $k ] = $wpdb->prepare( '%d', $v );
+			}
+			$unattached = implode( ',', $unattached );
+
+			$wpdb->query(
+				"REPLACE INTO {$temp}
+				SELECT * FROM {$current} p
+				WHERE p.ID IN ( {$unattached} )"
+			);
+		}
+
+		$limit = Backup_Command::get_limit_for_tag( array( 'attachments', 'post-type-attachment' ), 500 );
 
 		// Handle unrelated attachments
 		$wpdb->query(
@@ -103,7 +193,7 @@ class WP_LMaker_Core {
 			SELECT * FROM {$current} p
 			WHERE p.post_status NOT IN ('auto-draft', 'trash')
 			AND p.post_type IN ( 'attachment' ) AND p.post_parent = 0
-            ORDER BY p.post_date DESC
+			ORDER BY p.post_date DESC
 			LIMIT {$limit}"
 		);
 
@@ -111,20 +201,18 @@ class WP_LMaker_Core {
 		do {
 			$affected = $wpdb->query(
 				"REPLACE INTO {$temp}
-                SELECT p3.* FROM {$temp} p
-                LEFT JOIN {$temp} p2 ON p2.ID = p.post_parent
-                LEFT JOIN {$current} p3 ON p3.ID = p.post_parent
-                WHERE p.post_parent != 0 AND p2.ID IS NULL AND p3.ID IS NOT NULL"
+				SELECT p3.* FROM {$temp} p
+				LEFT JOIN {$temp} p2 ON p2.ID = p.post_parent
+				LEFT JOIN {$current} p3 ON p3.ID = p.post_parent
+				WHERE p.post_parent != 0 AND p2.ID IS NULL AND p3.ID IS NOT NULL"
 			);
 		} while ( $affected > 0 );
-
-		$file = Backup_Command::write_table_file( $temp, $current );
 
 		if ( Backup_Command::verbosity_is( 2 ) ) {
 			$columns = $wpdb->get_col(
 				$wpdb->prepare(
 					'SELECT column_name
-					FROM information_schema.columns 
+					FROM information_schema.columns
 					WHERE table_schema=%s AND table_name=%s',
 					Backup_Command::$db_name,
 					$temp
@@ -134,39 +222,51 @@ class WP_LMaker_Core {
 			$size_col = "SUM( LENGTH( CONCAT_WS('\", \"', " . implode( ', ', $columns ) . ') ) )';
 			$results  = $wpdb->get_results(
 				"SELECT post_type, COUNT(*) as num, {$size_col} as size
-				FROM {$temp} 
+				FROM {$temp}
 				GROUP BY post_type
 				ORDER BY size DESC"
 			);
 			foreach ( $results as $row ) {
-				WP_CLI::line( sprintf( '  Including %s %s posts, which is %s of data', $row->num, $row->post_type, size_format( $row->size ) ) );
+				WP_CLI::line( sprintf( '  Included %s %s posts, which is %s of data', $row->num, $row->post_type, size_format( $row->size ) ) );
 			}
 		}
+
+		$file = Backup_Command::write_table_file( $temp, $current );
 
 		return $file;
 	}
 
 	public function process_postmeta() {
-		global $wpdb;
-		$result = Backup_Command::dependant_table_dump_single( 'postmeta', 'posts', 'post_id', 'ID' );
-		if ( Backup_Command::verbosity_is( 2 ) ) {
-			$tables_info = Backup_Command::get_tables_names();
-			$temp_pm     = $tables_info['postmeta']['tempname'];
-			$temp_p      = $tables_info['posts']['tempname'];
-			$results     = $wpdb->get_results(
-				"SELECT 
-				p.post_type, 
-				COUNT(*) as num, 
-				SUM( LENGTH( meta_value ) ) as size 
-				FROM {$temp_pm} pm 
-				LEFT JOIN {$temp_p} p ON p.ID = pm.post_id
-				GROUP BY p.post_type 
-				ORDER BY size DESC"
-			);
-			foreach ( $results as $row ) {
-				WP_CLI::line( sprintf( '  Including %s meta rows related to %s posts, which is %s of data', $row->num, $row->post_type, size_format( $row->size ) ) );
-			}
-		}
+
+		$result = Backup_Command::dependant_table_dump_single(
+			'postmeta',
+			'posts',
+			'post_id',
+			'ID',
+			array(
+				'before_dumping' => function() {
+					global $wpdb;
+					if ( Backup_Command::verbosity_is( 2 ) ) {
+						$tables_info = Backup_Command::get_tables_names();
+						$temp_pm     = $tables_info['postmeta']['tempname'];
+						$temp_p      = $tables_info['posts']['tempname'];
+						$results     = $wpdb->get_results(
+							"SELECT
+						p.post_type,
+						COUNT(*) as num,
+						SUM( LENGTH( meta_value ) ) as size
+						FROM {$temp_pm} pm
+						LEFT JOIN {$temp_p} p ON p.ID = pm.post_id
+						GROUP BY p.post_type
+						ORDER BY size DESC"
+						);
+						foreach ( $results as $row ) {
+							WP_CLI::line( sprintf( '  Included %s meta rows related to %s posts, which is %s of data', $row->num, $row->post_type, size_format( $row->size ) ) );
+						}
+					}
+				},
+			) 
+		);
 
 		return $result;
 	}
@@ -191,7 +291,7 @@ class WP_LMaker_Core {
 		// Export administrators
 		$wpdb->query(
 			"REPLACE INTO {$temp}
-			SELECT u.* FROM {$current} u 
+			SELECT u.* FROM {$current} u
 			INNER JOIN {$curr_usermeta} um ON um.user_id = u.ID AND um.meta_key = '{$wpdb->prefix}capabilities'
 			WHERE um.meta_value LIKE '%\"administrator\"%'"
 		);
@@ -205,7 +305,7 @@ class WP_LMaker_Core {
 		// Export authors
 		$wpdb->query(
 			"REPLACE INTO {$temp}
-			SELECT u.* FROM {$current} u 
+			SELECT u.* FROM {$current} u
 			INNER JOIN {$temp_posts} p ON p.post_author = u.ID
 			GROUP BY {$user_keys}"
 		);
@@ -226,7 +326,7 @@ class WP_LMaker_Core {
 
 		$wpdb->query(
 			"DELETE FROM {$table_name}
-    		WHERE meta_key = 'session_tokens'"
+			WHERE meta_key = 'session_tokens'"
 		);
 	}
 
@@ -292,23 +392,23 @@ class WP_LMaker_Core {
 			WHERE option_name NOT LIKE '\_transient%' AND option_name NOT LIKE '\_site\_transient%'"
 		);
 
-		$file = Backup_Command::write_table_file( $temp, $current );
-
 		if ( Backup_Command::verbosity_is( 2 ) ) {
 			$results = $wpdb->get_results(
-				"SELECT 
-				SUBSTRING( option_name, 1, 10 ) as option_prefix, 
-				COUNT(*) as num, 
+				"SELECT
+				SUBSTRING( option_name, 1, 10 ) as option_prefix,
+				COUNT(*) as num,
 				SUM( LENGTH( option_value ) ) as size
-				FROM {$temp} 
-				GROUP BY option_prefix 
+				FROM {$temp}
+				GROUP BY option_prefix
 				ORDER BY size DESC
 				LIMIT 10"
 			);
 			foreach ( $results as $row ) {
-				WP_CLI::line( sprintf( '  Including %s options prefixed %s, which is %s of data', $row->num, "'{$row->option_prefix}%'", size_format( $row->size ) ) );
+				WP_CLI::line( sprintf( '  Included %s options prefixed %s, which is %s of data', $row->num, "'{$row->option_prefix}%'", size_format( $row->size ) ) );
 			}
 		}
+
+		$file = Backup_Command::write_table_file( $temp, $current );
 
 		return $file;
 	}

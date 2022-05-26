@@ -1,5 +1,5 @@
 <?php
-class PDOStatement implements Iterator {
+class PDOStatement_WP implements Iterator {
 	private $query          = '';
 	private $query_clean    = '';
 	private $page_size      = 1000;
@@ -9,13 +9,17 @@ class PDOStatement implements Iterator {
 	private $current_key    = 0;
 	private $current_page   = 0;
 	private $prev_keys      = 0;
-	private $fetch_mode     = PDO::FETCH_ASSOC; // phpcs:ignore
+	private $prev_offset    = 0;
+	private $fetch_mode     = PDO_WP::FETCH_ASSOC; // phpcs:ignore
+	private $prev_page_size = 0;
 
 	public function __construct( $sql ) {
 		$this->query       = trim( $sql, " \t\n\r\0\x0B;" );
 		$this->is_select   = preg_match( '/^SELECT/i', $this->query ) === 1;
 		$re                = '/\s*limit\s*([0-9]+)(?:\s*,\s*([0-9]+))?$/i';
 		$this->query_clean = preg_replace_callback( $re, array( $this, 'clean_query' ), $this->query, 1 );
+		
+		$this->is_data_dump_select = $this->is_select && false === strpos( $this->query_clean, 'TABLE_NAME AS tbl_name' );
 	}
 
 	public function clean_query( $matches ) {
@@ -49,9 +53,10 @@ class PDOStatement implements Iterator {
 		if ( ! $this->is_select ) {
 			return;
 		}
-		if ( count( $this->current_result ) !== $this->page_size ) {
+		if ( count( $this->current_result ) < $this->prev_page_size ) {
 			return; // we're out
 		}
+		$this->prev_offset += ( $this->prev_page_size );
 		$this->prev_keys  += $this->current_key;
 		$this->current_key = 0;
 		$this->get_next_page();
@@ -87,26 +92,37 @@ class PDOStatement implements Iterator {
 
 		$query = $this->query_clean;
 		if ( $this->is_select ) {
-			$offset    = $this->initial_offset + ( $this->current_page * $this->page_size );
+			$offset    = $this->initial_offset + $this->prev_offset;
 			$row_limit = min( $this->max_rows, $this->page_size ); // TODO needs improving
 			$limit     = ' LIMIT ' . $offset . ',' . $row_limit;
 			$query    .= $limit;
+
+			$this->prev_page_size = $row_limit;
 		}
 		$mode = null;
 		switch ( $this->fetch_mode ) {
-			case PDO::FETCH_ASSOC: // phpcs:ignore
+			case PDO_WP::FETCH_ASSOC: // phpcs:ignore
 				$mode = ARRAY_A;
 				break;
-			case PDO::FETCH_NUM: // phpcs:ignore
+			case PDO_WP::FETCH_NUM: // phpcs:ignore
 				$mode = ARRAY_N;
 				break;
-			case PDO::FETCH_OBJ: // phpcs:ignore
+			case PDO_WP::FETCH_OBJ: // phpcs:ignore
 				$mode = OBJECT;
 				break;
 			default:
 				throw new Exception( 'Invalid fetch mode' );
 		}
+		if ( $this->is_data_dump_select ) {
+			$memory_usage = memory_get_usage();
+		}
 		$results = $wpdb->get_results( $query, $mode );
+		if ( $this->is_data_dump_select ) {
+			$memory_usage = memory_get_usage() - $memory_usage;
+			if ( $memory_usage < 25 * MB_IN_BYTES ) {
+				$this->page_size = $this->page_size * 2;
+			}
+		}
 
 		// stop the insanity
 		$wpdb->queries = array();

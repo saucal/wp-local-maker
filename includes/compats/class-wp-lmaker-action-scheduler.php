@@ -29,8 +29,8 @@ class WP_LMaker_Action_Scheduler extends WP_LMaker_Abstract_Addon {
 		// Handle subscriptions related actions
 		$wpdb->query(
 			"REPLACE INTO {$temp}
-            SELECT * FROM {$current} 
-            WHERE post_type = 'scheduled-action' AND post_content IN ( SELECT CONCAT('{\"subscription_id\":', ID, '}') FROM {$temp} p2 WHERE p2.post_type = 'shop_subscription' )"
+			SELECT * FROM {$current}
+			WHERE post_type = 'scheduled-action' AND post_content IN ( SELECT CONCAT('{\"subscription_id\":', ID, '}') FROM {$temp} p2 WHERE p2.post_type = 'shop_subscription' )"
 		);
 	}
 
@@ -42,8 +42,8 @@ class WP_LMaker_Action_Scheduler extends WP_LMaker_Abstract_Addon {
 		// Handle memberships related actions
 		$wpdb->query(
 			"REPLACE INTO {$temp}
-            SELECT * FROM {$current} 
-            WHERE post_type = 'scheduled-action' AND post_content IN ( SELECT CONCAT('{\"user_membership_id\":', ID, '}') FROM {$temp} p2 WHERE p2.post_type = 'wc_user_membership' )"
+			SELECT * FROM {$current}
+			WHERE post_type = 'scheduled-action' AND post_content IN ( SELECT CONCAT('{\"user_membership_id\":', ID, '}') FROM {$temp} p2 WHERE p2.post_type = 'wc_user_membership' )"
 		);
 	}
 
@@ -71,15 +71,15 @@ class WP_LMaker_Action_Scheduler extends WP_LMaker_Abstract_Addon {
 		// Handle subscriptions related actions
 		$wpdb->query(
 			"REPLACE INTO {$temp}
-            SELECT * FROM {$current} 
-            WHERE args IN ( SELECT CONCAT('{\"subscription_id\":', ID, '}') FROM {$temp_post} p2 WHERE p2.post_type = 'shop_subscription' )"
+			SELECT * FROM {$current}
+			WHERE args IN ( SELECT CONCAT('{\"subscription_id\":', ID, '}') FROM {$temp_post} p2 WHERE p2.post_type = 'shop_subscription' )"
 		);
 
 		// Handle memberships related actions
 		$wpdb->query(
 			"REPLACE INTO {$temp}
-            SELECT * FROM {$current} 
-            WHERE args IN ( SELECT CONCAT('{\"user_membership_id\":', ID, '}') FROM {$temp_post} p2 WHERE p2.post_type = 'wc_user_membership' )"
+			SELECT * FROM {$current}
+			WHERE args IN ( SELECT CONCAT('{\"user_membership_id\":', ID, '}') FROM {$temp_post} p2 WHERE p2.post_type = 'wc_user_membership' )"
 		);
 
 		$file = Backup_Command::write_table_file( $temp, $current );

@@ -25,16 +25,16 @@ class WP_LMaker_WooCommerce_Memberships extends WP_LMaker_Abstract_Addon {
 		$current = $tables_info['posts']['currname'];
 		$temp    = $tables_info['posts']['tempname'];
 
-		$limit = Backup_Command::get_limit_for_tag( 'memberships', 50 );
+		$limit = Backup_Command::get_limit_for_tag( array( 'memberships', 'post-type-wc_user_membership' ), 50 );
 
 		// Handle memberships
 		$wpdb->query(
 			"REPLACE INTO {$temp}
-            SELECT * FROM {$current} p
-            WHERE p.post_status NOT IN ('auto-draft', 'trash')
-            AND p.post_type IN ( 'wc_user_membership' )
-            ORDER BY p.post_date DESC
-            LIMIT {$limit}"
+			SELECT * FROM {$current} p
+			WHERE p.post_status NOT IN ('auto-draft', 'trash')
+			AND p.post_type IN ( 'wc_user_membership' )
+			ORDER BY p.post_date DESC
+			LIMIT {$limit}"
 		);
 
 		do_action( 'wp_local_maker_memberships_after_memberships', $tables_info );
@@ -49,9 +49,9 @@ class WP_LMaker_WooCommerce_Memberships extends WP_LMaker_Abstract_Addon {
 		// Handle subscriptions related memberships
 		$wpdb->query(
 			"REPLACE INTO {$temp}
-            SELECT p.* FROM {$current} p
-            INNER JOIN {$curr_pm} pm ON p.ID = pm.post_id AND pm.meta_key = '_subscription_id'
-            WHERE p.post_type IN ( 'wc_user_membership' ) AND pm.meta_value IN ( SELECT ID FROM {$temp} p2 WHERE p2.post_type = 'shop_subscription' )"
+			SELECT p.* FROM {$current} p
+			INNER JOIN {$curr_pm} pm ON p.ID = pm.post_id AND pm.meta_key = '_subscription_id'
+			WHERE p.post_type IN ( 'wc_user_membership' ) AND pm.meta_value IN ( SELECT ID FROM {$temp} p2 WHERE p2.post_type = 'shop_subscription' )"
 		);
 	}
 

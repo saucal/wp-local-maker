@@ -13,7 +13,7 @@ WP_CLI::add_command( 'backup', 'Backup_Command' );
 /**
  * Perform backups of the database with reduced data sets
  */
-class Backup_Command extends WP_CLI_Command {
+class Backup_Command extends WP_LMaker_CLI_Command_Base {
 
 	protected static $tables_info = null;
 
@@ -34,6 +34,8 @@ class Backup_Command extends WP_CLI_Command {
 	protected static $mysqldump = null;
 
 	protected static $start_time = null;
+
+	protected static $table_names_by_site = array();
 
 	public static $db_name = '';
 
@@ -64,6 +66,24 @@ class Backup_Command extends WP_CLI_Command {
 	 * [--verbosity=<level>]
 	 * : Verbosity level. Shorthands available via --v, --vv, --vvv, --vvvv, --vvvvv.
 	 *
+	 * [--limit-posts=<amount>]
+	 * : Limit the amount of posts (post_type=post) to copy. Default 50.
+	 *
+	 * [--limit-attachments=<amount>]
+	 * : Limit the amount of attachments (post_type=attachment) to copy. Default 500.
+	 *
+	 * [--limit-memberships=<amount>]
+	 * : Limit the amount of memberships (post_type=wc_user_membership) to copy. Default 50.
+	 *
+	 * [--limit-subscriptions=<amount>]
+	 * : Limit the amount of subscriptions (post_type=shop_subscription) to copy. Default 50.
+	 *
+	 * [--limit-orders=<amount>]
+	 * : Limit the amount of orders (post_type=shop_order) to copy. Default 50.
+	 *
+	 * [--limit-products=<amount>]
+	 * : Limit the amount of products (post_type=product) to copy. Default PHP_INT_MAX (all products).
+	 *
 	 * [--<field>=<value>]
 	 * : Generic parameter to avoid validation issues.
 	 *
@@ -80,7 +100,13 @@ class Backup_Command extends WP_CLI_Command {
 
 		global $wpdb;
 		if ( is_a( $wpdb, 'hyperdb' ) ) {
-			$wpdb->add_callback( array( $this, '__hyperdb_force_master' ) );
+			if ( is_callable( array( $wpdb, 'send_reads_to_masters' ) ) ) {
+				WP_CLI::line( 'HyperDB detected. Forcing to read from masters.' );
+				$wpdb->send_reads_to_masters();
+			} else {
+				WP_CLI::line( 'HyperDB detected. Forcing to read from masters (legacy support).' );
+				$wpdb->add_callback( array( $this, '__hyperdb_force_master' ) );
+			}
 		}
 
 		self::$db_name = $wpdb->get_var( 'SELECT DATABASE()' );
@@ -88,18 +114,23 @@ class Backup_Command extends WP_CLI_Command {
 		if ( ! empty( $args[0] ) ) {
 			$result_file = $args[0];
 		} else {
-			$result_file = sprintf( 'WPLM-%s-%s-%s', self::$db_name, date( 'Y-m-d-H-i-s' ), self::$hash );
+			$result_file = sprintf( 'WPLM-%s-%s-%s', self::$db_name, gmdate( 'Y-m-d-H-i-s' ), self::$hash );
 		}
 
 		self::cleanup(); // early cleanup, to cleanup unfinished exports.
 
-		$db_only = WP_CLI\Utils\get_flag_value( $assoc_args, 'db-only', false );
-
 		$target_folder   = untrailingslashit( ABSPATH );
 		$target_url_base = untrailingslashit( site_url( '' ) );
 		$method          = 'fs';
+		if ( defined( 'VIP_GO_ENV' ) ) {
+			WP_CLI::line( 'VIP GO Environment detected. Forcing --db-only and --compat-mode.' );
+			self::set_flag_value( 'db-only', true );
+			self::set_flag_value( 'compat-mode', true );
+			$target_folder   = self::get_uploads_folder_path( 'wplm' );
+			$target_url_base = self::get_uploads_folder_url( 'wplm' );
+		}
 
-		$replace = WP_CLI\Utils\get_flag_value( $assoc_args, 'new-domain', false );
+		$replace = self::get_flag_value( 'new-domain', false );
 		if ( $replace ) {
 			self::$new_domain = $replace;
 			$old_domain       = network_site_url();
@@ -127,7 +158,8 @@ class Backup_Command extends WP_CLI_Command {
 			}
 		}
 
-		$zip = WP_CLI\Utils\get_flag_value( $assoc_args, 'zip', true );
+		$zip     = self::get_flag_value( 'zip', true );
+		$db_only = self::get_flag_value( 'db-only', false );
 
 		if ( ! $zip ) {
 			$result_file_tmp = $db_file;
@@ -176,9 +208,13 @@ class Backup_Command extends WP_CLI_Command {
 		}
 	}
 
+	/**
+	 * Cleanup previously generated exports.
+	 */
 	public function clean() {
 		$backups_prev = get_option( 'wplm_backups_history', array() );
 		foreach ( $backups_prev as $backup ) {
+			WP_CLI::line( sprintf( 'Cleaning up file %s.', $backup ) );
 			self::maybe_unlink( $backup );
 		}
 		update_option( 'wplm_backups_history', array(), false );
@@ -191,11 +227,29 @@ class Backup_Command extends WP_CLI_Command {
 	}
 
 	private static function move_to_destination( $result_file_tmp, $target_file ) {
-		return rename( $result_file_tmp, $target_file );
+		if ( defined( 'VIP_GO_ENV' ) ) {
+			$src_stream = fopen( $result_file_tmp, 'r' );
+			$tar_stream = fopen( $target_file, 'w' );
+			$moved      = stream_copy_to_stream( $src_stream, $tar_stream );
+			fclose( $src_stream );
+			fclose( $tar_stream );
+			return $moved ? true : false;
+		} else {
+			return rename( $result_file_tmp, $target_file ); // phpcs:ignore WordPressVIPMinimum.Functions.RestrictedFunctions
+		}
 	}
 
 	public static function get_flag_value( $flag, $default = null ) {
 		return WP_CLI\Utils\get_flag_value( self::$current_assoc_args, $flag, $default );
+	}
+	public static function set_flag_value( $flag, $value = true ) {
+		if ( is_null( $value ) ) {
+			if ( isset( self::$current_assoc_args[ $flag ] ) ) {
+				unset( self::$current_assoc_args[ $flag ] );
+			}
+		} else {
+			self::$current_assoc_args[ $flag ] = $value;
+		}
 	}
 
 	public static function verbosity_is( $level ) {
@@ -219,12 +273,23 @@ class Backup_Command extends WP_CLI_Command {
 		return 0;
 	}
 
-	public static function get_limit_for_tag( $tag, $default = null ) {
-		$limit = self::get_flag_value( 'limit-' . $tag, false );
-		if ( false !== $limit ) {
-			return intval( $limit );
+	public static function get_limit_for_tag( $tags, $default = null ) {
+		if ( ! is_array( $tags ) ) {
+			$tags = array( $tags );
 		}
-		$limit = apply_filters( 'wp_local_maker_limit_' . $tag, $default );
+		$limit = null;
+		foreach ( $tags as $tag ) {
+			$this_limit = self::get_flag_value( 'limit-' . $tag, false );
+			if ( false !== $this_limit ) {
+				$limit = intval( $this_limit );
+				break;
+			}
+		}
+		if ( is_null( $limit ) ) {
+			$limit = $default;
+			$tag   = $tags[0];
+		}
+		$limit = apply_filters( 'wp_local_maker_limit_' . $tag, $limit );
 		return intval( $limit );
 	}
 
@@ -282,7 +347,7 @@ class Backup_Command extends WP_CLI_Command {
 
 	private static function maybe_unlink( $file ) {
 		if ( file_exists( $file ) ) {
-			@unlink( $file );
+			@unlink( $file ); // phpcs:ignore WordPressVIPMinimum.Functions.RestrictedFunctions
 		}
 	}
 
@@ -298,13 +363,13 @@ class Backup_Command extends WP_CLI_Command {
 			$str = preg_replace( '/DEFINER=\`.*?\`@\`.*?\`/', '', $str );
 			$str = preg_replace( '/SQL SECURITY DEFINER/', '', $str );
 			$str = preg_replace( '/\/\*\![0-9]+\s*\*\/\n/', '', $str );
-			fputs( $target, $str );
+			fputs( $target, $str ); // phpcs:ignore WordPressVIPMinimum.Functions.RestrictedFunctions
 		}
 
 		fclose( $source );
 		self::maybe_unlink( $file );
 		fclose( $target );
-		rename( $target_name, $file );
+		rename( $target_name, $file ); // phpcs:ignore WordPressVIPMinimum.Functions.RestrictedFunctions
 		return $file;
 	}
 
@@ -417,6 +482,10 @@ class Backup_Command extends WP_CLI_Command {
 	}
 
 	public static function get_tables_names() {
+		$blog_id = get_current_blog_id();
+		if ( isset( self::$table_names_by_site[ $blog_id ] ) ) {
+			return self::$table_names_by_site[ $blog_id ];
+		}
 		$tables_info = self::get_tables_info();
 		foreach ( array_keys( $tables_info ) as $table ) {
 			$new_info              = array(
@@ -425,6 +494,7 @@ class Backup_Command extends WP_CLI_Command {
 			);
 			$tables_info[ $table ] = $new_info;
 		}
+		self::$table_names_by_site[ $blog_id ] = $tables_info;
 		return $tables_info;
 	}
 
@@ -497,13 +567,33 @@ class Backup_Command extends WP_CLI_Command {
 		return $file;
 	}
 
-	public static function dependant_table_dump( $current_index, $after = '' ) {
+	private static function run_callbacks( $key, $callbacks = array() ) {
+		if ( isset( $callbacks[ $key ] ) ) {
+			if ( ! is_array( $callbacks[ $key ] ) ) {
+				$callbacks[ $key ] = array( $callbacks[ $key ] );
+			}
+
+			foreach ( $callbacks[ $key ] as $cb ) {
+				if ( ! is_callable( $cb ) ) {
+					continue;
+				}
+
+				call_user_func( $cb );
+			}
+		}
+	}
+
+	public static function dependant_table_dump( $current_index, $after = '', $callbacks = array() ) {
 		global $wpdb;
 		$tables_info = self::get_tables_names();
 		$current     = $tables_info[ $current_index ]['currname'];
 		$temp        = $tables_info[ $current_index ]['tempname'];
 
+		self::run_callbacks( 'before_creating_table', $callbacks );
+
 		$wpdb->query( "CREATE TABLE IF NOT EXISTS {$temp} LIKE {$current}" );
+
+		self::run_callbacks( 'before_filtering', $callbacks );
 
 		$query = "REPLACE INTO {$temp} SELECT * FROM {$current} p";
 		if ( $after ) {
@@ -512,15 +602,17 @@ class Backup_Command extends WP_CLI_Command {
 
 		$wpdb->query( $query );
 
+		self::run_callbacks( 'before_dumping', $callbacks );
+
 		$file = self::write_table_file( $temp, $current );
 
 		return $file;
 	}
 
-	public static function dependant_table_dump_single( $current, $dependant, $current_key, $dependant_key ) {
+	public static function dependant_table_dump_single( $current, $dependant, $current_key, $dependant_key, $callbacks = array() ) {
 		$tables_info = self::get_tables_names();
 		$temp_posts  = $tables_info[ $dependant ]['tempname'];
-		return self::dependant_table_dump( $current, "WHERE p.{$current_key} IN ( SELECT {$dependant_key} FROM {$temp_posts} p2 GROUP BY {$dependant_key} )" );
+		return self::dependant_table_dump( $current, "WHERE p.{$current_key} IN ( SELECT {$dependant_key} FROM {$temp_posts} p2 GROUP BY {$dependant_key} )", $callbacks );
 	}
 
 	public static function get_table_keys_group( $table, $prefix = '' ) {
@@ -565,6 +657,9 @@ class Backup_Command extends WP_CLI_Command {
 
 		$global_queue = array();
 
+		$old_blog_id    = get_current_blog_id();
+		$old_network_id = get_current_network_id();
+
 		foreach ( $tables as $table ) {
 
 			list($internal_key, $blog_id) = self::get_table_internal_info( $table );
@@ -590,11 +685,15 @@ class Backup_Command extends WP_CLI_Command {
 				continue;
 			}
 
+			$wpdb->set_blog_id( $blog_id, $old_network_id );
+
 			$object_to_append = array(
 				'currname' => $table,
 				'tempname' => self::get_table_name( $internal_key, 'temp' ),
 				'callback' => $tbl_info['callback'],
 			);
+
+			$wpdb->set_blog_id( $old_blog_id, $old_network_id );
 
 			if ( in_array( $internal_key, $global_tables, true ) ) {
 				$global_queue[ $tbl_info['prio'] ] = $object_to_append;
@@ -671,13 +770,13 @@ class Backup_Command extends WP_CLI_Command {
 
 		while ( ! feof( $source ) ) {
 			$str = str_replace( $find, $replace, fgets( $source ) );
-			fputs( $target, $str );
+			fputs( $target, $str ); // phpcs:ignore WordPressVIPMinimum.Functions.RestrictedFunctions
 		}
 
 		fclose( $source );
 		self::maybe_unlink( $file );
 		fclose( $target );
-		rename( $target_name, $file );
+		rename( $target_name, $file ); // phpcs:ignore WordPressVIPMinimum.Functions.RestrictedFunctions
 		return $file;
 	}
 
@@ -704,13 +803,17 @@ class Backup_Command extends WP_CLI_Command {
 	protected static function cleanup() {
 		global $wpdb;
 		$tables = $wpdb->get_col( "SHOW TABLES LIKE '_WPLM%'" );
-		foreach ( $tables as $table ) {
+		if ( ! empty( $tables ) ) {
 			if ( self::verbosity_is( 5 ) ) {
-				WP_CLI::line( "Removing temporary table {$table}." );
+				WP_CLI::line( 'Removing temporary tables:' );
+				foreach ( $tables as $table ) {
+					WP_CLI::line( "  {$table}" );
+				}
 			}
-			$wpdb->query( "DROP TABLE IF EXISTS {$table}" );
+			$tables = implode( ', ', $tables );
+			$wpdb->query( "DROP TABLE IF EXISTS {$tables}" );
 			if ( self::verbosity_is( 4 ) ) {
-				WP_CLI::line( "Removed temporary table {$table}." );
+				WP_CLI::line( 'Removed all temporary tables.' );
 			}
 		}
 		self::$new_domain     = self::$old_domain = false; // phpcs:ignore Squiz.PHP.DisallowMultipleAssignments
