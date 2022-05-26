@@ -6,6 +6,7 @@
  * Version: 1.0.0
  * Author: SAU/CAL
  * Author URI: https://www.saucal.com
+ * GitHub Plugin URI: saucal/wp-local-maker
  */
 
 if ( ! class_exists( 'WP_CLI' ) ) {
