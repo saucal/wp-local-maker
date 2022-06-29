@@ -37,6 +37,10 @@ class Backup_Command extends WP_LMaker_CLI_Command_Base {
 
 	protected static $table_names_by_site = array();
 
+	public static $multisite_clone_from = '';
+
+	public static $multisite_clone_to = '';
+
 	public static $db_name = '';
 
 	protected function init_deps() {
@@ -87,11 +91,22 @@ class Backup_Command extends WP_LMaker_CLI_Command_Base {
 	 * [--<field>=<value>]
 	 * : Generic parameter to avoid validation issues.
 	 *
+	 * [--multisite-blog-clone-from=<value>]
+	 * : Clone only multisite blog ID data. Default false
+	 *
+	 * [--multisite-blog-clone-to=<value>]
+	 * : Multisite new blog ID. default false.
+	 *
+	 * [--multisite-skip-tables-data=<value>]
+	 * : Multisite Cloning. Do not export data for <value> tables. Multiple tables are separated by a comma without prefix. Eg. woocommerce_orders,stream
+	 *
+	 * [--full-db=1]
+	 * : Multisite Cloning. Export all data, except of excluded tables.
+	 *
 	 */
 	public function export( $args, $assoc_args ) {
 
 		self::$start_time = microtime( true );
-
 		$this->init_deps();
 
 		self::$current_assoc_args = $assoc_args;
@@ -178,7 +193,7 @@ class Backup_Command extends WP_LMaker_CLI_Command_Base {
 				self::maybe_zip_folder( ABSPATH, $result_file_tmp, $db_file );
 			}
 		}
-		
+
 
 		self::cleanup();
 		self::$current_assoc_args = array();
@@ -327,13 +342,15 @@ class Backup_Command extends WP_LMaker_CLI_Command_Base {
 		}
 
 		$first_pass = self::get_temp_filename();
+		$settings = array(
+			'no-data' => true,
+		);
 
+		$settings = apply_filters( 'wp_local_maker_dump_settings', $settings );
 		self::$mysqldump->run(
 			self::$db_name,
 			$first_pass,
-			array(
-				'no-data' => true,
-			)
+			$settings
 		);
 
 		$first_pass = self::adjust_structure( $first_pass );
@@ -363,6 +380,7 @@ class Backup_Command extends WP_LMaker_CLI_Command_Base {
 			$str = preg_replace( '/DEFINER=\`.*?\`@\`.*?\`/', '', $str );
 			$str = preg_replace( '/SQL SECURITY DEFINER/', '', $str );
 			$str = preg_replace( '/\/\*\![0-9]+\s*\*\/\n/', '', $str );
+			$str = apply_filters( 'wp_local_maker_dump_string', $str );
 			fputs( $target, $str ); // phpcs:ignore WordPressVIPMinimum.Functions.RestrictedFunctions
 		}
 
@@ -561,7 +579,7 @@ class Backup_Command extends WP_LMaker_CLI_Command_Base {
 		if ( self::verbosity_is( 1 ) ) {
 			WP_CLI::line( sprintf( 'Dumped %d rows from %s. Export size: %s', $wpdb->get_var( "SELECT COUNT(*) FROM {$table}" ), $original_table_name, size_format( $export_size ) ) );
 		}
-
+		do_action( 'wp_local_maker_adjust_dump_data_file', $file );
 		self::$exported_files[ $original_table_name ] = $export_size;
 
 		return $file;
@@ -649,6 +667,7 @@ class Backup_Command extends WP_LMaker_CLI_Command_Base {
 
 		$files  = array();
 		$tables = $wpdb->get_col( "SHOW FULL TABLES WHERE Table_Type = 'BASE TABLE'" );
+		$tables = apply_filters( 'wp_local_maker_dump_tables', $tables );
 
 		$tables_info   = self::get_tables_info();
 		$global_tables = self::global_tables();

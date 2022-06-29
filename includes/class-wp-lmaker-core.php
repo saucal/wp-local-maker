@@ -53,7 +53,7 @@ class WP_LMaker_Core {
 
 	private function get_block_properties( $content, $block, $property ) {
 		$re = '/<!-- ' . $block . ' ({.*?} )?-->/m';
-		
+
 		preg_match_all( $re, $content, $matches, PREG_SET_ORDER, 0 );
 
 		$list = array();
@@ -70,7 +70,7 @@ class WP_LMaker_Core {
 				$list[] = $props[ $property ];
 			}
 		}
-	
+
 		return $list;
 	}
 
@@ -265,7 +265,7 @@ class WP_LMaker_Core {
 						}
 					}
 				},
-			) 
+			)
 		);
 
 		return $result;
