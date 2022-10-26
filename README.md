@@ -18,6 +18,12 @@ All of the processing is done through as-optimized-as-possible queries to MySQL 
 
 All of the functionality of the plugin is made available through WP CLI, and the plugin itself does nothing in any other context.
 
+To install it as a WP-CLI package run:
+
+```sh
+wp package install saucal/wp-local-maker:@master
+```
+
 The command to run is:
 
 ```sh
